@@ -19,13 +19,17 @@
 }
 html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--tg-bg); color: var(--tg-text); }
 #map { position: absolute; inset: 0; z-index: 1; }
-#filters { position: fixed; top: calc(10px + env(safe-area-inset-top)); left: 0; right: 0; display: flex; gap: 6px; padding: 0 12px; overflow-x: auto; overflow-y: hidden; z-index: 500; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+#filters { position: fixed; top: calc(10px + env(safe-area-inset-top)); left: 0; right: 60px; display: flex; gap: 6px; padding: 0 12px; overflow-x: auto; overflow-y: hidden; z-index: 500; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 #filters::-webkit-scrollbar { display: none; }
 .chip { flex-shrink: 0; padding: 7px 12px; border-radius: 18px; border: none; background: rgba(255,255,255,0.95); color: #333; font-size: 13px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.15); cursor: pointer; font-family: inherit; opacity: 0.45; white-space: nowrap; transition: opacity 0.15s, transform 0.1s; }
 .chip.active { opacity: 1; }
 .chip:active { transform: scale(0.95); }
 .chip .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
-#loading-bar { position: fixed; top: calc(54px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%) translateY(-10px); background: rgba(0,0,0,0.82); color: #fff; padding: 8px 16px; border-radius: 18px; font-size: 12px; font-weight: 600; z-index: 400; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; display: flex; align-items: center; gap: 8px; max-width: 90%; }
+
+#profile-btn { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.95); color: #333; font-size: 22px; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 510; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.15s; }
+#profile-btn:active { transform: scale(0.92); }
+
+#loading-bar { position: fixed; top: calc(60px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%) translateY(-10px); background: rgba(0,0,0,0.82); color: #fff; padding: 8px 16px; border-radius: 18px; font-size: 12px; font-weight: 600; z-index: 400; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; display: flex; align-items: center; gap: 8px; max-width: 90%; }
 #loading-bar.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 #loading-bar .mini-spinner { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
 #loading-bar.count { background: rgba(30,140,70,0.9); }
@@ -33,7 +37,7 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
 @keyframes spin { to { transform: rotate(360deg); } }
 #zoom-hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.78); color: #fff; padding: 16px 22px; border-radius: 14px; font-size: 14px; font-weight: 600; z-index: 400; text-align: center; max-width: 80%; line-height: 1.5; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
 #zoom-hint.show { opacity: 1; }
-#pick-hint { position: fixed; top: calc(54px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%) translateY(-10px); background: rgba(36,129,204,0.95); color: #fff; padding: 10px 18px; border-radius: 18px; font-size: 13px; font-weight: 600; z-index: 700; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; text-align: center; max-width: 90%; }
+#pick-hint { position: fixed; top: calc(60px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%) translateY(-10px); background: rgba(36,129,204,0.95); color: #fff; padding: 10px 18px; border-radius: 18px; font-size: 13px; font-weight: 600; z-index: 700; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; text-align: center; max-width: 90%; }
 #pick-hint.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 #pick-hint button { margin-left: 8px; background: rgba(255,255,255,0.25); color: #fff; border: none; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; }
 #loader { position: fixed; inset: 0; display: flex; flex-direction: column; gap: 14px; align-items: center; justify-content: center; background: var(--tg-bg); color: var(--tg-text); z-index: 1000; font-size: 15px; transition: opacity 0.3s; padding: 20px; text-align: center; }
@@ -87,12 +91,12 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
 .btn:active { opacity: 0.75; transform: scale(0.98); }
 .btn-primary { background: var(--tg-button); color: var(--tg-button-text); }
 .btn-outline { background: transparent; color: var(--tg-button); border: 1.5px solid var(--tg-button); }
-#edit-dialog, #add-dialog { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; animation: fadeIn 0.2s; overflow-y: auto; }
-#edit-dialog.hidden, #add-dialog.hidden { display: none; }
+#edit-dialog, #add-dialog, #profile-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 1100; padding: 20px; animation: fadeIn 0.2s; overflow-y: auto; }
+#edit-dialog.hidden, #add-dialog.hidden, #profile-modal.hidden { display: none; }
 @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-.dialog-box { background: var(--tg-bg); color: var(--tg-text); border-radius: 16px; padding: 22px; width: 100%; max-width: 380px; animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); max-height: 90vh; overflow-y: auto; margin: auto; }
+.dialog-box, .profile-box { background: var(--tg-bg); color: var(--tg-text); border-radius: 16px; padding: 22px; width: 100%; max-width: 380px; animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); max-height: 90vh; overflow-y: auto; margin: auto; }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
-.dialog-box h3 { margin-bottom: 6px; font-size: 18px; }
+.dialog-box h3, .profile-box h2 { margin-bottom: 6px; font-size: 18px; }
 .dialog-box > p { color: var(--tg-hint); font-size: 13px; margin-bottom: 14px; }
 #edit-input, #add-name, #add-address, #add-code { width: 100%; padding: 13px; border-radius: 10px; border: 1.5px solid var(--tg-hint); background: var(--tg-bg); color: var(--tg-text); font-size: 16px; margin-bottom: 12px; font-family: inherit; }
 #edit-input:focus, #add-name:focus, #add-address:focus, #add-code:focus { outline: none; border-color: var(--tg-button); }
@@ -104,6 +108,25 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
 .coords-display button { background: none; border: none; color: var(--tg-button); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 4px 8px; }
 .dialog-actions { display: flex; gap: 8px; margin-top: 14px; }
 .dialog-actions .btn { flex: 1; }
+
+/* Профиль */
+.profile-level { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 12px; background: var(--tg-secondary-bg); margin: 14px 0; }
+.profile-level .lvl-emoji { font-size: 34px; line-height: 1; }
+.profile-level .lvl-info { flex: 1; min-width: 0; }
+.profile-level .lvl-label { font-weight: 700; font-size: 16px; }
+.profile-level .lvl-progress { font-size: 12px; color: var(--tg-hint); margin-top: 2px; }
+.profile-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.profile-stat { background: var(--tg-secondary-bg); border-radius: 12px; padding: 12px 8px; text-align: center; }
+.profile-stat .num { font-size: 22px; font-weight: 800; }
+.profile-stat .lbl { font-size: 11px; color: var(--tg-hint); margin-top: 4px; }
+.profile-badges-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.profile-badge { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 10px; background: var(--tg-secondary-bg); opacity: 0.4; transition: opacity 0.2s; }
+.profile-badge.got { opacity: 1; background: linear-gradient(135deg, rgba(255,215,0,0.14), rgba(255,215,0,0.06)); border: 1px solid rgba(255,215,0,0.4); }
+.profile-badge .b-emoji { font-size: 24px; line-height: 1; }
+.profile-badge .b-info { min-width: 0; flex: 1; }
+.profile-badge .b-label { font-weight: 600; font-size: 12px; }
+.profile-badge .b-need { font-size: 10px; color: var(--tg-hint); margin-top: 1px; }
+
 #toast { position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(0,0,0,0.85); color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity 0.3s, transform 0.3s; z-index: 2000; pointer-events: none; max-width: 80%; text-align: center; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
@@ -112,6 +135,8 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
 
 <div id="map"></div>
 <div id="filters"></div>
+<button id="profile-btn" aria-label="Мой профиль">🏆</button>
+
 <div id="loading-bar"><div class="mini-spinner"></div><span id="loading-text">Ищем туалеты…</span></div>
 <div id="zoom-hint">Приблизьте карту,<br>чтобы увидеть туалеты</div>
 <div id="pick-hint">Тапните по карте, чтобы указать точку<button id="pick-cancel">Отмена</button></div>
@@ -166,6 +191,17 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
   </div>
 </div>
 
+<div id="profile-modal" class="hidden">
+  <div class="profile-box">
+    <h2>Мой профиль</h2>
+    <div class="profile-level" id="profile-level-block"></div>
+    <div class="profile-stats" id="profile-stats-block"></div>
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px;">Бейджи</div>
+    <div class="profile-badges-grid" id="profile-badges-block"></div>
+    <button class="btn btn-primary" onclick="closeProfile()">Закрыть</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 <div id="loader"><div class="spinner"></div><div id="loader-text">Загрузка…</div></div>
 
@@ -188,14 +224,14 @@ let fbApp = null, fbDb = null, fbAuth = null, fbUid = null;
 /* ====================== КОНСТАНТЫ ====================== */
 const MIN_ZOOM_FOR_LOAD = 13;
 const MOVE_DEBOUNCE_MS = 400;
-const TILE_SIZE_DEG = 0.05;                  // ~5 км
+const TILE_SIZE_DEG = 0.05;
 const SEARCH_RADIUS = 1200;
-const TILE_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 часов жёсткий TTL
-const SOFT_TTL_MS = 30 * 60 * 1000;           // 30 минут — мягкий TTL, после него фоновое обновление
+const TILE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const SOFT_TTL_MS = 30 * 60 * 1000;
 const OVERPASS_TIMEOUT_MS = 12000;
 const STORAGE_PREFIX = 'tg_toilet_code_';
 const MY_VOTES_KEY = 'tg_toilet_myvotes_v2_';
-const TILE_LOCAL_PREFIX = 'tg_tile_v3_';      // новая версия — чтобы старые кэши не мешались
+const TILE_LOCAL_PREFIX = 'tg_tile_v3_';
 
 const OVERPASS_ENDPOINTS = [
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
@@ -213,10 +249,6 @@ const CATEGORIES = {
   other:     { label: 'Другое',       emoji: '📌', color: '#757575', assumed: true },
 };
 
-// 🔑 Комбинированный запрос: всё в ОДНОМ HTTP-запросе вместо 7
-// Это экономит 6× времени на TCP+TLS handshake
-// 🔑 Только туалеты и самые важные заведения. Кафе/рестораны убраны —
-//    их в OSM десятки тысяч, они в 5 раз тяжелее всего остального вместе.
 const TILE_COMBINED_QUERY = (lat, lng) => `[out:json][timeout:20];
 (
   nwr["amenity"="toilets"](around:${SEARCH_RADIUS},${lat},${lng});
@@ -241,11 +273,11 @@ const REVIEW_TYPES = {
 const tg = window.Telegram?.WebApp;
 let map;
 let userPlacemark = null;
+let clusterer = null;
 let toiletsById = new Map();
 let currentPosition = null;
 let selectedToilet = null;
 const activeCategories = new Set(Object.keys(CATEGORIES));
-const currentMarkers = new Map();
 const loadedTiles = new Set();
 const loadingTiles = new Set();
 let moveDebounceTimer = null;
@@ -258,6 +290,93 @@ let pickMode = false;
 let tempPickMarker = null;
 let locationDetermined = false;
 let isCentering = false;
+
+// 🔑 Кэш статусов туалета (broken/trusted) — чтобы не пересчитывать 20 000 раз
+const statusCache = new Map();
+
+// 🔑 Статистика пользователя (для бейджей)
+let userStats = { added: 0, votes: 0, codes: 0 };
+
+/* ====================== БЕЙДЖИ И УРОВНИ ====================== */
+const BADGES = [
+  { id: 'add1',   stat: 'added', need: 1,   emoji: '🥉', label: 'Первая отметка' },
+  { id: 'add5',   stat: 'added', need: 5,   emoji: '🥈', label: '5 точек' },
+  { id: 'add25',  stat: 'added', need: 25,  emoji: '🥇', label: 'Картограф' },
+  { id: 'add100', stat: 'added', need: 100, emoji: '🏆', label: 'Легенда' },
+  { id: 'vote1',  stat: 'votes', need: 1,   emoji: '💬', label: 'Первый отзыв' },
+  { id: 'vote10', stat: 'votes', need: 10,  emoji: '📣', label: '10 отзывов' },
+  { id: 'vote50', stat: 'votes', need: 50,  emoji: '🔊', label: '50 отзывов' },
+  { id: 'code1',  stat: 'codes', need: 1,   emoji: '🔑', label: 'Первый код' },
+];
+
+const LEVELS = [
+  { min: 0,  label: 'Проводник', emoji: '🧭' },
+  { min: 5,  label: 'Штурман',   emoji: '🗺️' },
+  { min: 20, label: 'Бригадир',  emoji: '📻' },
+  { min: 50, label: 'Легенда',   emoji: '👑' },
+];
+
+function getUserLevel() {
+  const score = (userStats.added || 0) * 3 + (userStats.votes || 0) + (userStats.codes || 0) * 2;
+  let level = LEVELS[0];
+  for (const l of LEVELS) if (score >= l.min) level = l;
+  const next = LEVELS.find(l => l.min > score);
+  return { level, next, score };
+}
+
+function renderProfileBadge() {
+  const btn = document.getElementById('profile-btn');
+  if (!btn) return;
+  const { level } = getUserLevel();
+  btn.textContent = level.emoji;
+}
+
+function openProfile() {
+  const { level, next, score } = getUserLevel();
+  const levelBlock = document.getElementById('profile-level-block');
+  const statsBlock = document.getElementById('profile-stats-block');
+  const badgesBlock = document.getElementById('profile-badges-block');
+
+  const prog = next ? `${score} / ${next.min} очков до «${next.label}»` : 'Максимальный уровень!';
+
+  levelBlock.innerHTML = `
+    <div class="lvl-emoji">${level.emoji}</div>
+    <div class="lvl-info">
+      <div class="lvl-label">${level.label}</div>
+      <div class="lvl-progress">${prog}</div>
+    </div>`;
+
+  statsBlock.innerHTML = `
+    <div class="profile-stat"><div class="num">${userStats.added || 0}</div><div class="lbl">Туалетов</div></div>
+    <div class="profile-stat"><div class="num">${userStats.votes || 0}</div><div class="lbl">Отзывов</div></div>
+    <div class="profile-stat"><div class="num">${userStats.codes || 0}</div><div class="lbl">Кодов</div></div>`;
+
+  badgesBlock.innerHTML = BADGES.map(b => {
+    const got = (userStats[b.stat] || 0) >= b.need;
+    return `
+      <div class="profile-badge ${got ? 'got' : ''}">
+        <div class="b-emoji">${b.emoji}</div>
+        <div class="b-info">
+          <div class="b-label">${b.label}</div>
+          <div class="b-need">${got ? '✓ Получен' : `Нужно: ${b.need}`}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('profile-modal').classList.remove('hidden');
+}
+
+function closeProfile() {
+  document.getElementById('profile-modal').classList.add('hidden');
+}
+
+// 🔑 Инкремент статистики в Firebase
+function bumpStat(field) {
+  if (!FIREBASE_ENABLED || !fbDb || !fbUid) return;
+  fbDb.ref('users/' + fbUid + '/stats/' + field)
+    .transaction(c => (c || 0) + 1)
+    .catch(() => {});
+}
 
 /* ====================== TELEGRAM ====================== */
 function initTelegram() {
@@ -304,7 +423,7 @@ async function initFirebase() {
     fbUid = cred.user.uid;
     console.log('🔥 Firebase OK, uid:', fbUid);
 
-    // ── 1. Пользовательские туалеты (добавленные через «+») ──
+    // ── 1. Пользовательские туалеты ──
     fbDb.ref('toilets').on('value', (snapshot) => {
       const data = snapshot.val() || {};
       let changed = false;
@@ -319,6 +438,7 @@ async function initFirebase() {
           if (oldVotes !== newVotes || oldCode !== newCode) {
             existing.votes = t.votes || null;
             if (t.code != null) existing.access_code = t.code;
+            statusCache.delete(id);
             changed = true;
           }
         } else {
@@ -338,19 +458,18 @@ async function initFirebase() {
         }
       }
       if (changed) {
-        console.log('🔥 Firebase: обновление пользовательских', toiletsById.size);
         scheduleRender();
         refreshOpenSheet();
       }
     }, (err) => console.warn('Firebase toilets error:', err));
 
-    // ── 2. 🔑 Голоса и коды для OSM-туалетов ──
+    // ── 2. Голоса и коды для OSM-туалетов ──
     fbDb.ref('osm_data').on('value', (snapshot) => {
       const data = snapshot.val() || {};
       let changed = false;
       for (const [osmId, entry] of Object.entries(data)) {
         const t = toiletsById.get(osmId);
-        if (!t) continue;   // нет такой точки на карте — пропускаем
+        if (!t) continue;
 
         const oldVotes = JSON.stringify(t.votes || null);
         const newVotes = JSON.stringify(entry.votes || null);
@@ -360,11 +479,11 @@ async function initFirebase() {
         if (oldVotes !== newVotes || oldCode !== newCode) {
           t.votes = entry.votes || null;
           if (entry.code != null) t.access_code = entry.code;
+          statusCache.delete(osmId);
           changed = true;
         }
       }
       if (changed) {
-        console.log('🔥 Firebase: обновление OSM-голосов');
         if (selectedToilet) {
           const updated = toiletsById.get(selectedToilet.id);
           if (updated) {
@@ -377,12 +496,17 @@ async function initFirebase() {
       }
     }, (err) => console.warn('Firebase osm_data error:', err));
 
+    // ── 3. 🔑 Статистика пользователя для бейджей ──
+    fbDb.ref('users/' + fbUid + '/stats').on('value', (snap) => {
+      userStats = snap.val() || { added: 0, votes: 0, codes: 0 };
+      renderProfileBadge();
+    }, (err) => console.warn('Firebase stats error:', err));
+
   } catch (e) {
     console.error('Firebase init failed:', e);
   }
 }
 
-// 🔑 Обновляет открытую карточку, если её данные изменились
 function refreshOpenSheet() {
   if (!selectedToilet) return;
   const updated = toiletsById.get(selectedToilet.id);
@@ -395,8 +519,6 @@ function refreshOpenSheet() {
 }
 
 /* ====================== PRECOMPUTED CITIES ====================== */
-// 🔑 Список городов, для которых база уже залита в Firebase.
-//    Клиент берёт только ОДИН ближайший — не все сразу.
 const PRECOMPUTED_CITIES = [
   { name: 'moscow',       lat: 55.7558, lng: 37.6173, r: 30000 },
   { name: 'spb',          lat: 59.9343, lng: 30.3351, r: 18000 },
@@ -449,17 +571,12 @@ const PRECOMPUTED_CITIES = [
   { name: 'sevastopol',   lat: 44.6166, lng: 33.5254, r: 12000 },
   { name: 'simferopol',   lat: 44.9521, lng: 34.1024, r: 10000 },
 ];
-
-// 🔑 Максимальное расстояние до города — 60 км.
-//    Если пользователь дальше — не берём precomputed, грузим через Overpass.
 const PRECOMPUTED_MAX_DIST_KM = 60;
 
-// 🔑 Находим ближайший precomputed-город
 function findNearestPrecomputedCity(lat, lng) {
   let nearest = null;
   let minD = Infinity;
   for (const c of PRECOMPUTED_CITIES) {
-    // Грубая формула (для 60 км точность ±1 км — хватает)
     const dLat = (lat - c.lat) * 111;
     const dLng = (lng - c.lng) * 111 * Math.cos(lat * Math.PI / 180);
     const d = Math.sqrt(dLat * dLat + dLng * dLng);
@@ -468,19 +585,15 @@ function findNearestPrecomputedCity(lat, lng) {
   return minD < PRECOMPUTED_MAX_DIST_KM ? { city: nearest, dist: minD } : null;
 }
 
-// 🔑 Загружаем туалеты ближайшего города из Firebase
 async function loadPrecomputedToilets(lat, lng) {
   if (!FIREBASE_ENABLED || !fbDb) return 0;
-
   const found = findNearestPrecomputedCity(lat, lng);
   if (!found) {
     console.log('🎯 Precomputed: рядом нет городов из базы');
     return 0;
   }
-
   const { city, dist } = found;
   console.log(`🎯 Ближайший город: ${city.name} (${Math.round(dist)} км)`);
-
   try {
     const snap = await fbDb.ref('precomputed/' + city.name).once('value');
     const data = snap.val();
@@ -488,7 +601,6 @@ async function loadPrecomputedToilets(lat, lng) {
       console.log(`🎯 Precomputed ${city.name}: пусто в базе`);
       return 0;
     }
-
     let added = 0;
     for (const [id, t] of Object.entries(data.toilets)) {
       if (toiletsById.has(id)) continue;
@@ -504,7 +616,6 @@ async function loadPrecomputedToilets(lat, lng) {
       });
       added++;
     }
-
     console.log(`✅ Precomputed ${city.name}: +${added} туалетов (всего в базе ${data.count})`);
     return added;
   } catch (e) {
@@ -512,9 +623,8 @@ async function loadPrecomputedToilets(lat, lng) {
     return 0;
   }
 }
-  
+
 /* ====================== ТАЙЛЫ ====================== */
-// 🔑 Принимает float radius — можно расширять область для предзагрузки соседей
 function getTilesAround(radius) {
   const c = map.getCenter();
   const cLat = Math.floor(c[0] / TILE_SIZE_DEG);
@@ -543,13 +653,6 @@ function loadLocalTile(tileKey) {
     return data;
   } catch (_) { return null; }
 }
-function getLocalTileTs(tileKey) {
-  try {
-    const raw = localStorage.getItem(TILE_LOCAL_PREFIX + tileKey);
-    if (!raw) return 0;
-    return JSON.parse(raw).ts || 0;
-  } catch (_) { return 0; }
-}
 function saveLocalTile(tileKey, data) {
   try {
     localStorage.setItem(TILE_LOCAL_PREFIX + tileKey,
@@ -566,7 +669,6 @@ async function loadFBTile(tileKey) {
     if (!data.toilets) return null;
     return Object.values(data.toilets);
   } catch (e) {
-    console.warn('FB tile read failed:', e.message);
     return null;
   }
 }
@@ -583,13 +685,8 @@ async function saveFBTile(tileKey, toilets) {
         category: t.category,
       };
     }
-    await fbDb.ref('tiles/' + tileKey).update({
-      ts: Date.now(),
-      toilets: obj,
-    });
-  } catch (e) {
-    console.warn('FB tile write failed:', e.message);
-  }
+    await fbDb.ref('tiles/' + tileKey).update({ ts: Date.now(), toilets: obj });
+  } catch (e) {}
 }
 
 /* ====================== OVERPASS ====================== */
@@ -642,37 +739,26 @@ function osmToToilet(el) {
   const lat = el.lat ?? el.center?.lat;
   const lng = el.lon ?? el.center?.lon;
   if (lat == null || lng == null) return null;
-
   const tags = el.tags || {};
   const category = determineCategory(tags);
   const osmId = `osm_${el.type}_${el.id}`;
-
   let name = tags['name:ru'] || tags.name;
   if (!name) {
     if (category === 'free') name = 'Общественный туалет';
-    else if (category === 'transport') {
-      if (tags.railway === 'station') name = 'Вокзал';
-      else if (tags.aeroway === 'aerodrome') name = 'Аэропорт';
-      else if (tags.amenity === 'bus_station') name = 'Автовокзал';
-      else name = 'Транспорт';
-    }
-    else if (category === 'mall') name = tags.shop === 'department_store' ? 'Универмаг' : 'Торговый центр';
+    else if (category === 'transport') name = 'Транспорт';
+    else if (category === 'mall') name = 'Торговый центр';
     else if (category === 'fastfood') name = 'Фастфуд';
-    else if (category === 'hospital') name = tags.amenity === 'clinic' ? 'Поликлиника' : 'Больница';
+    else if (category === 'hospital') name = 'Больница';
     else if (category === 'fuel') name = 'АЗС';
-    else if (category === 'cafe') name = tags.amenity === 'restaurant' ? 'Ресторан' : 'Кафе';
+    else if (category === 'cafe') name = 'Кафе';
     else name = 'Место';
   }
-
   const address = [tags['addr:street'], tags['addr:housenumber']]
     .filter(Boolean).join(', ') || 'Адрес не указан';
-
   return {
-    id: osmId,
-    name, address,
+    id: osmId, name, address,
     latitude: lat, longitude: lng,
-    category,
-    source: 'OSM',
+    category, source: 'OSM',
     access_code: null,
   };
 }
@@ -689,30 +775,23 @@ function applyToilets(toilets) {
   return added;
 }
 
-/* ====================== КОМБИНИРОВАННЫЙ ЗАПРОС ====================== */
-// 🔑 Один запрос вместо семи — все категории сразу
 async function fetchCombinedOverpass(lat, lng, mySeq) {
   try {
     const data = await fetchOverpass(TILE_COMBINED_QUERY(lat, lng));
     if (mySeq !== loadSeq) return [];
     return (data.elements || []).map(osmToToilet).filter(Boolean);
   } catch (e) {
-    console.warn('Combined query failed:', e.message);
     return [];
   }
 }
 
 /* ====================== ЗАГРУЗКА ТАЙЛА ====================== */
 async function loadTile(lat, lng, tileKey, mySeq) {
-  // 1. Локальный кэш — мгновенно
   const localCached = loadLocalTile(tileKey);
   if (localCached) {
     const added = applyToilets(localCached);
-    console.log(`📦 ${tileKey} из localStorage: ${added}`);
     return { added, from: 'local' };
   }
-
-  // 2. Firebase shared-кэш — быстро, у всех уже готово
   const fbCached = await loadFBTile(tileKey);
   if (fbCached && mySeq === loadSeq) {
     const toilets = fbCached.map(t => ({
@@ -724,19 +803,15 @@ async function loadTile(lat, lng, tileKey, mySeq) {
     if (toilets.length) {
       const added = applyToilets(toilets);
       saveLocalTile(tileKey, toilets);
-      console.log(`🔥 ${tileKey} из Firebase: ${added}`);
       return { added, from: 'firebase' };
     }
   }
-
-  // 3. ОДИН комбинированный запрос к Overpass
   const toilets = await fetchCombinedOverpass(lat, lng, mySeq);
   const added = applyToilets(toilets);
   if (toilets.length) {
     saveLocalTile(tileKey, toilets);
-    saveFBTile(tileKey, toilets); // асинхронно
+    saveFBTile(tileKey, toilets);
   }
-  console.log(`🌐 ${tileKey} из OSM: +${added}`);
   return { added, from: 'osm' };
 }
 
@@ -744,7 +819,6 @@ async function loadTile(lat, lng, tileKey, mySeq) {
 async function loadForCurrentView() {
   const zoom = map.getZoom();
   const hint = document.getElementById('zoom-hint');
-
   if (zoom < MIN_ZOOM_FOR_LOAD) {
     hint.classList.add('show');
     hideLoadingBar();
@@ -752,19 +826,13 @@ async function loadForCurrentView() {
   }
   hint.classList.remove('show');
 
-  // 🔑 ПРИ СТАРТЕ — ТОЛЬКО 1 ЦЕНТРАЛЬНЫЙ ТАЙЛ
-  // Соседние загрузятся, когда пользователь сдвинет карту.
-  // Это даёт маркеры через 2-3 сек вместо 36.
   let tiles;
   if (!locationDetermined || loadedTiles.size === 0) {
-    // первый запуск — только центральный
     const c = map.getCenter();
     const cLat = Math.floor(c[0] / TILE_SIZE_DEG);
     const cLng = Math.floor(c[1] / TILE_SIZE_DEG);
     tiles = [{ key: `${cLat}_${cLng}`, lat: cLat, lng: cLng }];
-    console.log('🎯 Стартовая загрузка: 1 тайл');
   } else {
-    // пользователь двигается — грузим видимые, но не больше 4 за раз
     const c = map.getCenter();
     const cLat = Math.floor(c[0] / TILE_SIZE_DEG);
     const cLng = Math.floor(c[1] / TILE_SIZE_DEG);
@@ -774,27 +842,17 @@ async function loadForCurrentView() {
         tiles.push({ key: `${la}_${ln}`, lat: la, lng: ln });
       }
     }
-    // Обрезаем до 4 самых важных (центр + соседи)
-    tiles = tiles
-      .filter(t => !loadedTiles.has(t.key) && !loadingTiles.has(t.key))
-      .slice(0, 4);
+    tiles = tiles.filter(t => !loadedTiles.has(t.key) && !loadingTiles.has(t.key)).slice(0, 4);
   }
-
-  // Отбрасываем уже загруженные
   tiles = tiles.filter(t => !loadedTiles.has(t.key) && !loadingTiles.has(t.key));
-
   if (tiles.length === 0) {
-    console.log('✅ Все тайлы в зоне видны');
     hideLoadingBar();
     return;
   }
 
   const mySeq = ++loadSeq;
-
-  // ═══ ШАГ 1: МГНОВЕННЫЙ РЕНДЕР ИЗ КЭША ═══
   let showedFromCache = 0;
   const freshTiles = [];
-
   for (const t of tiles) {
     const cached = loadLocalTile(t.key);
     if (cached) {
@@ -805,12 +863,7 @@ async function loadForCurrentView() {
       freshTiles.push(t);
     }
   }
-
-  if (showedFromCache > 0) {
-    scheduleRender();
-    console.log(`⚡ Из кэша: ${showedFromCache}`);
-  }
-
+  if (showedFromCache > 0) scheduleRender();
   if (freshTiles.length === 0) {
     if (showedFromCache > 0) {
       showLoadingBar(`Из кэша: ${showedFromCache}`, 'count');
@@ -818,20 +871,14 @@ async function loadForCurrentView() {
     }
     return;
   }
-
   showLoadingBar(`Загрузка ${freshTiles.length}…`);
 
-  // ═══ ШАГ 2: ПАРАЛЛЕЛЬНО, НО НЕ БОЛЬШЕ 2 ОДНОВРЕМЕННО ═══
-  // Overpass срывает 9 запросов сразу, но 2 тянет.
   let total = 0;
   const queue = [...freshTiles];
-
   async function loadOne(t) {
     if (mySeq !== loadSeq) return;
     if (loadingTiles.has(t.key) || loadedTiles.has(t.key)) return;
     loadingTiles.add(t.key);
-
-    // Сначала Firebase (мгновенно, если кто-то грузил)
     const fbCached = await loadFBTile(t.key);
     if (fbCached && mySeq === loadSeq) {
       const toilets = fbCached.map(x => ({
@@ -846,16 +893,12 @@ async function loadForCurrentView() {
         loadedTiles.add(t.key);
         loadingTiles.delete(t.key);
         scheduleRender();
-        console.log(`🔥 ${t.key}: +${added}`);
         return;
       }
     }
-
-    // Overpass
     const c = tileCenter(t.lat, t.lng);
     const toilets = await fetchCombinedOverpass(c.lat, c.lng, mySeq);
     if (mySeq !== loadSeq) return;
-
     const added = applyToilets(toilets);
     total += added;
     if (toilets.length) {
@@ -864,11 +907,8 @@ async function loadForCurrentView() {
     }
     loadedTiles.add(t.key);
     loadingTiles.delete(t.key);
-    console.log(`🌐 ${t.key}: +${added}`);
     scheduleRender();
   }
-
-  // Пул из 2 параллельных воркеров
   async function worker() {
     while (queue.length > 0) {
       const t = queue.shift();
@@ -876,10 +916,7 @@ async function loadForCurrentView() {
     }
   }
   await Promise.all([worker(), worker()]);
-
   if (mySeq !== loadSeq) return;
-
-  console.log(`✅ Итог: +${total}`);
   showLoadingBar(total > 0 ? `Найдено: +${total}` : 'Ничего нет', total > 0 ? 'count' : 'empty');
   setTimeout(hideLoadingBar, 1500);
 }
@@ -896,6 +933,19 @@ function initMap() {
         suppressMapOpenBlock: true,
         yandexMapDisablePoiInteractivity: true,
       });
+
+      // 🔑 Кластеризация
+      clusterer = new ymaps.Clusterer({
+        preset: 'islands#invertedBlueClusterIcons',
+        groupByCoordinates: false,
+        clusterDisableClickZoom: false,
+        clusterHideIconOnBalloonOpen: false,
+        geoObjectHideIconOnBalloonOpen: false,
+        hasBalloon: false,
+        gridSize: 64,
+        minClusterSize: 3,
+      });
+      map.geoObjects.add(clusterer);
 
       map.events.add('click', (e) => {
         if (pickMode) {
@@ -916,7 +966,6 @@ function onMapMoved() {
   if (pickMode) return;
   if (isCentering) return;
   if (!locationDetermined) locationDetermined = true;
-
   clearTimeout(moveDebounceTimer);
   moveDebounceTimer = setTimeout(loadForCurrentView, MOVE_DEBOUNCE_MS);
   clearTimeout(renderDebounceTimer);
@@ -930,18 +979,15 @@ function getMarkerSvg(color, letter, isAssumed, isUser, isTrustedFlag) {
   if (svg) return svg;
 
   const opacity = isAssumed ? '0.85' : '1';
-  // 🔑 Проверенные — толще обводка, ярче вид
   const strokeWidth = isTrustedFlag ? '3.5' : (isUser ? '3' : (isAssumed ? '2' : '2.5'));
   const strokeColor = isTrustedFlag ? '#ffd700' : (isUser ? '#ffeb3b' : 'white');
   const fontSize = isAssumed ? 15 : 14;
 
-  // 🔑 Проверенные — 42×50 пикселей (крупнее), остальные — 38×46
   const w = isTrustedFlag ? 42 : 38;
   const h = isTrustedFlag ? 50 : 46;
   const cx = isTrustedFlag ? 21 : 19;
   const cy = isTrustedFlag ? 22 : 19;
 
-  // Галочка в правом верхнем углу для проверенных
   const check = isTrustedFlag
     ? `<circle cx="${w - 6}" cy="6" r="6" fill="#ffd700" stroke="white" stroke-width="1.5"/>
        <path d="M${w - 9} 6 l2 2 l4-4" fill="none" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`
@@ -979,6 +1025,7 @@ function scheduleRender() {
     renderMarkers();
   });
 }
+
 function renderMarkers() {
   if (userPlacemark) { map.geoObjects.remove(userPlacemark); userPlacemark = null; }
   if (currentPosition) {
@@ -993,6 +1040,9 @@ function renderMarkers() {
     map.geoObjects.add(userPlacemark);
   }
 
+  if (!clusterer) return;
+  clusterer.removeAll();
+
   const b = map.getBounds();
   if (!b) return;
   const s = Math.min(b[0][0], b[1][0]) - 0.005;
@@ -1000,36 +1050,21 @@ function renderMarkers() {
   const w = Math.min(b[0][1], b[1][1]) - 0.005;
   const e = Math.max(b[0][1], b[1][1]) + 0.005;
 
-  const wanted = new Map();
-  const sorted = [...toiletsById.values()].sort((a, b2) => {
-    const aU = a.source === 'user' ? -1 : 0;
-    const bU = b2.source === 'user' ? -1 : 0;
-    return aU - bU;
-  });
+  const toAdd = [];
 
-    for (const t of sorted) {
+  for (const t of toiletsById.values()) {
     if (!activeCategories.has(t.category)) continue;
     if (t.latitude < s || t.latitude > n) continue;
     if (t.longitude < w || t.longitude > e) continue;
-    // 🔑 Скрываем туалеты, где много голосов «не работает»
-    if (isLikelyBroken(t)) continue;
-    wanted.set(t.id, t);
-  }
 
-  for (const [id, pm] of currentMarkers) {
-    if (!wanted.has(id)) {
-      map.geoObjects.remove(pm);
-      currentMarkers.delete(id);
-    }
-  }
+    // 🔑 Проверка через кэш — быстро
+    const st = getStatus(t);
+    if (st.broken) continue;
 
-  for (const [id, t] of wanted) {
-    if (currentMarkers.has(id)) continue;
     const cat = CATEGORIES[t.category] || CATEGORIES.other;
     const letter = t.category === 'free' ? 'WC' : cat.emoji;
     const isUser = t.source === 'user';
-
-    const trusted = isTrusted(t);
+    const trusted = st.trusted;
 
     const pm = new ymaps.Placemark(
       [t.latitude, t.longitude],
@@ -1040,6 +1075,7 @@ function renderMarkers() {
         iconImageSize: trusted ? [42, 50] : [38, 46],
         iconImageOffset: trusted ? [-21, -50] : [-19, -46],
       });
+
     pm.events.add('click', (ev) => {
       suppressMapCloseUntil = Date.now() + 500;
       try { if (ev?.originalEvent?.stopPropagation) ev.originalEvent.stopPropagation(); } catch (_) {}
@@ -1047,10 +1083,33 @@ function renderMarkers() {
       openBottomSheet(t);
     });
 
-    map.geoObjects.add(pm);
-    currentMarkers.set(id, pm);
+    toAdd.push(pm);
   }
+
+  clusterer.add(toAdd);
 }
+
+/* ====================== СТАТУСЫ (с кэшем) ====================== */
+function getStatus(t) {
+  const cached = statusCache.get(t.id);
+  // Если мы уже считали этого туалета — и votes не менялись (проверяем по объёму),
+  // возвращаем кэш. Всё остальное медленно.
+  const stats = getStats(t);
+  const wv = stats.works;
+  const total = wv.yes + wv.no;
+
+  if (cached && cached.total === total && cached.yes === wv.yes) return cached;
+
+  const broken = total >= 3 && wv.no >= 3 && (wv.no / total) > 0.6;
+  const trusted = total >= 5 && (wv.yes / total) >= 0.8;
+
+  const result = { broken, trusted, total, yes: wv.yes };
+  statusCache.set(t.id, result);
+  return result;
+}
+
+function isLikelyBroken(t) { return getStatus(t).broken; }
+function isTrusted(t) { return getStatus(t).trusted; }
 
 /* ====================== ОТЗЫВЫ ====================== */
 function getUserVotes(id) {
@@ -1075,32 +1134,13 @@ function getStats(toilet) {
       }
     }
   }
-  // 🔑 Локальный голос прибавляем ТОЛЬКО если он ещё НЕ подтверждён Firebase.
-  //    Иначе двойной подсчёт (+2 вместо +1).
   const myVotes = getUserVotes(toilet.id);
   for (const k in REVIEW_TYPES) {
-    if (myVotes[k + '_sent']) continue;   // уже в Firebase — не дублируем
+    if (myVotes[k + '_sent']) continue;
     if (myVotes[k] === 'yes') empty[k].yes += 1;
     if (myVotes[k] === 'no')  empty[k].no  += 1;
   }
   return empty;
-}
-function isLikelyBroken(toilet) {
-  const stats = getStats(toilet);
-  const w = stats.works;
-  const total = w.yes + w.no;
-  if (total < 3) return false;
-  return w.no >= 3 && (w.no / total) > 0.6;
-}
-
-// 🔑 «Проверенный» туалет: 80%+ положительных отзывов и хотя бы 5 голосов.
-//    Такие маркеры рисуем с золотой обводкой и галочкой.
-function isTrusted(toilet) {
-  const stats = getStats(toilet);
-  const w = stats.works;
-  const total = w.yes + w.no;
-  if (total < 5) return false;
-  return (w.yes / total) >= 0.8;
 }
 function renderReviews(toilet) {
   const c = document.getElementById('bs-reviews-list');
@@ -1147,7 +1187,6 @@ async function handleVote(toilet, key, value) {
   const prev = votes[key];
   if (prev === value) { showToast('Вы уже голосовали так'); return; }
 
-  // Новый голос — сбрасываем флаг «уже отправлено»
   votes[key] = value;
   delete votes[key + '_sent'];
   saveUserVotes(toilet.id, votes);
@@ -1167,15 +1206,15 @@ async function handleVote(toilet, key, value) {
         return cur;
       });
 
-      // 🔑 Помечаем, что Firebase уже знает про наш голос.
-      //    Теперь getStats не будет прибавлять его второй раз.
       const fresh = getUserVotes(toilet.id);
       fresh[key + '_sent'] = true;
       saveUserVotes(toilet.id, fresh);
 
-      console.log(`✅ Голос отправлен и подтверждён: ${path}`);
+      // 🔑 Считаем статистику для бейджей
+      if (!prev) bumpStat('votes');
+
+      statusCache.delete(toilet.id);
     } catch (e) {
-      console.warn('Vote FB failed:', e);
       showToast('Не удалось отправить голос');
       return;
     }
@@ -1398,8 +1437,7 @@ async function saveNewToilet() {
 
   const fbId = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
   const toilet = {
-    id: fbId,
-    name,
+    id: fbId, name,
     address: address || 'Адрес не указан',
     latitude: addingToilet.lat,
     longitude: addingToilet.lng,
@@ -1425,8 +1463,10 @@ async function saveNewToilet() {
         createdBy: fbUid,
       });
       saved = true;
-      console.log('🔥 Туалет в Firebase');
-    } catch (e) { console.warn('FB write failed:', e); }
+      // 🔑 Считаем статистику
+      bumpStat('added');
+      if (code) bumpStat('codes');
+    } catch (e) {}
   }
 
   toiletsById.set(fbId, toilet);
@@ -1444,6 +1484,11 @@ async function saveNewToilet() {
 /* ====================== ОБРАБОТЧИКИ ====================== */
 document.getElementById('bottom-sheet').addEventListener('click', e => e.stopPropagation());
 document.getElementById('bottom-sheet').addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+
+document.getElementById('profile-btn').addEventListener('click', openProfile);
+document.getElementById('profile-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'profile-modal') closeProfile();
+});
 
 document.getElementById('bs-toggle-code').addEventListener('click', (e) => {
   e.stopPropagation();
@@ -1470,20 +1515,18 @@ document.getElementById('edit-save').addEventListener('click', async () => {
   const input = document.getElementById('edit-input');
   const newCode = input.value.trim();
   if (!newCode || !selectedToilet) return;
+  const hadCode = !!selectedToilet.access_code;
   localStorage.setItem(STORAGE_PREFIX + selectedToilet.id, newCode);
   selectedToilet.access_code = newCode;
 
   if (FIREBASE_ENABLED && fbDb) {
-    // 🔑 Тот же выбор пути, что и в handleVote
     const path = selectedToilet.fbid
       ? `toilets/${selectedToilet.fbid}/code`
       : `osm_data/${selectedToilet.id}/code`;
-
     try {
       await fbDb.ref(path).set(newCode);
-      console.log(`✅ Код отправлен: ${path}`);
+      if (!hadCode) bumpStat('codes'); // первый код — плюс к статистике
     } catch (e) {
-      console.warn('Code FB update failed:', e);
       showToast('Не удалось сохранить код');
       return;
     }
@@ -1587,11 +1630,11 @@ function hideLoader() {
 async function init() {
   initTelegram();
   renderFilters();
+  renderProfileBadge();
 
   updateLoader('Загружаем карту…');
   await initMap();
 
-  // Firebase в фоне (не блокирует)
   initFirebase().catch(e => console.warn('FB init error:', e));
 
   updateLoader('Определяем вашу геопозицию…');
@@ -1605,47 +1648,33 @@ async function init() {
     currentPosition = pos;
     isCentering = true;
     map.setCenter([pos.lat, pos.lng], 15, { duration: 0 });
-
     setTimeout(() => { isCentering = false; }, 200);
 
-    // 🎯 ШАГ 1: пробуем precomputed (мгновенно из Firebase)
     updateLoader('Загружаем туалеты…');
     const precomputedCount = await loadPrecomputedToilets(pos.lat, pos.lng);
 
     if (precomputedCount > 0) {
-      // 🔑 ВАЖНО: после загрузки precomputed нужно ещё раз прочитать osm_data,
-      //    потому что listener сработал раньше, когда toiletsById был пуст.
-      //    Без этой строки пользователь не увидит уже накопленные голоса.
       try {
         const osmSnap = await fbDb.ref('osm_data').once('value');
         const osmData = osmSnap.val() || {};
-        let votesApplied = 0;
         for (const [osmId, entry] of Object.entries(osmData)) {
           const t = toiletsById.get(osmId);
           if (t) {
             if (entry.votes) t.votes = entry.votes;
             if (entry.code) t.access_code = entry.code;
-            votesApplied++;
           }
         }
-        console.log(`🗳 Применено голосов/кодов: ${votesApplied}`);
-      } catch (e) {
-        console.warn('osm_data re-read failed:', e.message);
-      }
+      } catch (e) {}
 
-      // ✅ Есть готовые данные — рендерим и радуемся
       scheduleRender();
       showLoadingBar(`Загружено ${precomputedCount} туалетов`, 'count');
       setTimeout(hideLoadingBar, 1500);
 
-      // 🎯 ШАГ 2: в фоне всё равно грузим тайлы — 
-      //    чтобы подтянуть то, чего нет в precomputed (свежие пользовательские точки)
       setTimeout(() => {
         locationDetermined = true;
         loadForCurrentView();
       }, 800);
     } else {
-      // 🎯 ШАГ 3: пользователь далеко от крупных городов — грузим через Overpass
       locationDetermined = true;
       loadForCurrentView();
     }
