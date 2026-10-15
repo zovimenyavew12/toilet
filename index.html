@@ -188,13 +188,14 @@ let fbApp = null, fbDb = null, fbAuth = null, fbUid = null;
 /* ====================== КОНСТАНТЫ ====================== */
 const MIN_ZOOM_FOR_LOAD = 13;
 const MOVE_DEBOUNCE_MS = 400;
-const TILE_SIZE_DEG = 0.05;         // ~5 км
+const TILE_SIZE_DEG = 0.05;                  // ~5 км
 const SEARCH_RADIUS = 3500;
-const TILE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const OVERPASS_TIMEOUT_MS = 8000;
+const TILE_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 часов жёсткий TTL
+const SOFT_TTL_MS = 30 * 60 * 1000;           // 30 минут — мягкий TTL, после него фоновое обновление
+const OVERPASS_TIMEOUT_MS = 12000;
 const STORAGE_PREFIX = 'tg_toilet_code_';
 const MY_VOTES_KEY = 'tg_toilet_myvotes_v2_';
-const TILE_LOCAL_PREFIX = 'tg_tile_v2_';
+const TILE_LOCAL_PREFIX = 'tg_tile_v3_';      // новая версия — чтобы старые кэши не мешались
 
 const OVERPASS_ENDPOINTS = [
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
@@ -214,28 +215,26 @@ const CATEGORIES = {
   other:     { label: 'Другое',       emoji: '📌', color: '#757575', assumed: true },
 };
 
-// FAST — критично важное, короткий таймаут, грузим первым
-const TILE_FAST_QUERY = (lat, lng) => `[out:json][timeout:12];
+// 🔑 Комбинированный запрос: всё в ОДНОМ HTTP-запросе вместо 7
+// Это экономит 6× времени на TCP+TLS handshake
+const TILE_COMBINED_QUERY = (lat, lng) => `[out:json][timeout:22];
 (
   nwr["amenity"="toilets"](around:${SEARCH_RADIUS},${lat},${lng});
   nwr["toilets"="yes"](around:${SEARCH_RADIUS},${lat},${lng});
+  nwr["toilets"="customers"](around:${SEARCH_RADIUS},${lat},${lng});
+  nwr["toilets"="public"](around:${SEARCH_RADIUS},${lat},${lng});
   nwr["railway"="station"](around:${SEARCH_RADIUS},${lat},${lng});
+  nwr["amenity"="bus_station"](around:${SEARCH_RADIUS},${lat},${lng});
   nwr["shop"="mall"](around:${SEARCH_RADIUS},${lat},${lng});
   nwr["shop"="department_store"](around:${SEARCH_RADIUS},${lat},${lng});
   nwr["amenity"="fast_food"](around:${SEARCH_RADIUS},${lat},${lng});
-);
-out center 200;`;
-
-// SLOW — второстепенное, в фоне
-const TILE_SLOW_QUERY = (lat, lng) => `[out:json][timeout:20];
-(
   nwr["amenity"="hospital"](around:${SEARCH_RADIUS},${lat},${lng});
   nwr["amenity"="clinic"](around:${SEARCH_RADIUS},${lat},${lng});
   nwr["amenity"="fuel"](around:${SEARCH_RADIUS},${lat},${lng});
   nwr["amenity"="cafe"](around:${SEARCH_RADIUS},${lat},${lng});
   nwr["amenity"="restaurant"](around:${SEARCH_RADIUS},${lat},${lng});
 );
-out center 200;`;
+out center 400;`;
 
 const REVIEW_TYPES = {
   works: { label: 'Работает?', yes: 'Работает', no: 'Не работает' },
@@ -311,7 +310,7 @@ async function initFirebase() {
     fbUid = cred.user.uid;
     console.log('🔥 Firebase OK, uid:', fbUid);
 
-    // Слушаем ВСЕ пользовательские туалеты (их будет не много)
+    // Слушаем ВСЕ пользовательские туалеты
     fbDb.ref('toilets').on('value', (snapshot) => {
       const data = snapshot.val() || {};
       let changed = false;
@@ -321,7 +320,6 @@ async function initFirebase() {
 
         const existing = toiletsById.get(id);
         if (existing) {
-          // Обновляем существующий — голоса, код, имя
           const oldVotes = JSON.stringify(existing.votes || null);
           const newVotes = JSON.stringify(t.votes || null);
           const oldCode = existing.access_code;
@@ -332,7 +330,6 @@ async function initFirebase() {
             changed = true;
           }
         } else {
-          // Новый туалет
           toiletsById.set(id, {
             id,
             name: t.name || 'Туалет',
@@ -352,7 +349,6 @@ async function initFirebase() {
       if (changed) {
         console.log('🔥 Firebase: обновление', toiletsById.size);
         scheduleRender();
-        // Если открыта карточка — обновляем её
         if (selectedToilet) {
           const updated = toiletsById.get(selectedToilet.id);
           if (updated) {
@@ -372,13 +368,15 @@ async function initFirebase() {
 }
 
 /* ====================== ТАЙЛЫ ====================== */
+// 🔑 Принимает float radius — можно расширять область для предзагрузки соседей
 function getTilesAround(radius) {
   const c = map.getCenter();
   const cLat = Math.floor(c[0] / TILE_SIZE_DEG);
   const cLng = Math.floor(c[1] / TILE_SIZE_DEG);
+  const r = Math.max(0, Math.ceil(radius));
   const tiles = [];
-  for (let la = cLat - radius; la <= cLat + radius; la++) {
-    for (let ln = cLng - radius; ln <= cLng + radius; ln++) {
+  for (let la = cLat - r; la <= cLat + r; la++) {
+    for (let ln = cLng - r; ln <= cLng + r; ln++) {
       tiles.push({ key: `${la}_${ln}`, lat: la, lng: ln });
     }
   }
@@ -398,6 +396,13 @@ function loadLocalTile(tileKey) {
     if (Date.now() - ts > TILE_CACHE_TTL_MS) return null;
     return data;
   } catch (_) { return null; }
+}
+function getLocalTileTs(tileKey) {
+  try {
+    const raw = localStorage.getItem(TILE_LOCAL_PREFIX + tileKey);
+    if (!raw) return 0;
+    return JSON.parse(raw).ts || 0;
+  } catch (_) { return 0; }
 }
 function saveLocalTile(tileKey, data) {
   try {
@@ -538,6 +543,19 @@ function applyToilets(toilets) {
   return added;
 }
 
+/* ====================== КОМБИНИРОВАННЫЙ ЗАПРОС ====================== */
+// 🔑 Один запрос вместо семи — все категории сразу
+async function fetchCombinedOverpass(lat, lng, mySeq) {
+  try {
+    const data = await fetchOverpass(TILE_COMBINED_QUERY(lat, lng));
+    if (mySeq !== loadSeq) return [];
+    return (data.elements || []).map(osmToToilet).filter(Boolean);
+  } catch (e) {
+    console.warn('Combined query failed:', e.message);
+    return [];
+  }
+}
+
 /* ====================== ЗАГРУЗКА ТАЙЛА ====================== */
 async function loadTile(lat, lng, tileKey, mySeq) {
   // 1. Локальный кэш — мгновенно
@@ -565,43 +583,15 @@ async function loadTile(lat, lng, tileKey, mySeq) {
     }
   }
 
-  // 3. Загрузка из Overpass
-  const tileToilets = [];
-  let fastAdded = 0;
-
-  try {
-    const data = await fetchOverpass(TILE_FAST_QUERY(lat, lng));
-    if (mySeq !== loadSeq) return { added: 0 };
-    const toilets = (data.elements || []).map(osmToToilet).filter(Boolean);
-    fastAdded = applyToilets(toilets);
-    tileToilets.push(...toilets);
-    if (tileToilets.length) {
-      saveLocalTile(tileKey, tileToilets);
-      saveFBTile(tileKey, tileToilets); // асинхронно, без await
-    }
-    console.log(`🌐 ${tileKey} fast: +${fastAdded}`);
-  } catch (e) {
-    console.warn(`Fast fail ${tileKey}:`, e.message);
+  // 3. ОДИН комбинированный запрос к Overpass
+  const toilets = await fetchCombinedOverpass(lat, lng, mySeq);
+  const added = applyToilets(toilets);
+  if (toilets.length) {
+    saveLocalTile(tileKey, toilets);
+    saveFBTile(tileKey, toilets); // асинхронно
   }
-
-  // 4. Slow — в фоне
-  fetchOverpass(TILE_SLOW_QUERY(lat, lng))
-    .then(data => {
-      if (mySeq !== loadSeq) return;
-      const toilets = (data.elements || []).map(osmToToilet).filter(Boolean);
-      if (toilets.length) {
-        const added = applyToilets(toilets);
-        if (added > 0) {
-          const merged = [...tileToilets, ...toilets];
-          saveLocalTile(tileKey, merged);
-          saveFBTile(tileKey, merged);
-          console.log(`🌐 ${tileKey} slow: +${added}`);
-        }
-      }
-    })
-    .catch(() => {});
-
-  return { added: fastAdded, from: 'osm' };
+  console.log(`🌐 ${tileKey} из OSM: +${added}`);
+  return { added, from: 'osm' };
 }
 
 /* ====================== ЗАГРУЗКА ВИДИМОЙ ОБЛАСТИ ====================== */
@@ -616,22 +606,78 @@ async function loadForCurrentView() {
   }
   hint.classList.remove('show');
 
-  // Радиус тайлов: на большом зуме 3×3, на мелком 1
-  const radius = zoom >= 14 ? 1 : 0;
-  const tiles = getTilesAround(radius);
-  const toLoad = tiles.filter(t => !loadedTiles.has(t.key) && !loadingTiles.has(t.key));
+  // 🔑 Padding: радиус 1 на зуме 14+, иначе 0. Умножаем на 1.25 для предзагрузки соседей.
+  const baseRadius = zoom >= 14 ? 1 : 0;
+  const tiles = getTilesAround(baseRadius * 1.25);
 
-  if (toLoad.length === 0) {
-    console.log('✅ Все тайлы уже загружены');
+  // 🔑 Защита от слишком большой области (страна вместо города)
+  if (tiles.length > 9) {
+    console.log(`⚠️ Слишком много ячеек: ${tiles.length}, приблизьте карту`);
+    hideLoadingBar();
     return;
   }
 
-  for (const t of toLoad) loadingTiles.add(t.key);
-
   const mySeq = ++loadSeq;
-  showLoadingBar(`Загрузка ${toLoad.length} зон…`);
 
-  const promises = toLoad.map(({ key, lat, lng }) => {
+  // ═══════════════════════════════════════════════════
+  // ШАГ 1: МГНОВЕННЫЙ РЕНДЕР ИЗ КЭША
+  // Показываем ВСЁ, что есть в localStorage, даже устаревшее.
+  // Это даёт мгновенный «отклик» карты — пользователь сразу видит маркеры.
+  // ═══════════════════════════════════════════════════
+  let showedFromCache = 0;
+  const staleTiles = [];   // тайлы старше SOFT_TTL — обновим в фоне
+  const freshTiles = [];   // тайлы, которых нет в кэше — грузим из сети
+
+  for (const t of tiles) {
+    const cached = loadLocalTile(t.key);
+    if (cached) {
+      applyToilets(cached);
+      showedFromCache++;
+      // Помечаем на фоновое обновление, если тайл старше 30 минут
+      const ts = getLocalTileTs(t.key);
+      if (ts && Date.now() - ts > SOFT_TTL_MS) staleTiles.push(t);
+    } else {
+      freshTiles.push(t);
+    }
+  }
+
+  if (showedFromCache > 0) {
+    scheduleRender();
+    console.log(`⚡ Мгновенно из кэша: ${showedFromCache} ячеек`);
+  }
+
+  // ═══════════════════════════════════════════════════
+  // ШАГ 2: ФОНОВОЕ ОБНОВЛЕНИЕ УСТАРЕВШИХ ТАЙЛОВ
+  // Не блокирует UI, не показывает прогресс. Тихо обновляет в фоне.
+  // ═══════════════════════════════════════════════════
+  staleTiles.forEach(t => {
+    const c = tileCenter(t.lat, t.lng);
+    fetchCombinedOverpass(c.lat, c.lng, mySeq)
+      .then(toilets => {
+        if (mySeq !== loadSeq || !toilets.length) return;
+        applyToilets(toilets);
+        saveLocalTile(t.key, toilets);
+        saveFBTile(t.key, toilets);
+        console.log(`🔄 ${t.key} обновлён в фоне: +${toilets.length}`);
+      })
+      .catch(() => {});
+  });
+
+  // ═══════════════════════════════════════════════════
+  // ШАГ 3: ЗАГРУЗКА НОВЫХ ЯЧЕЕК
+  // Если всё было в кэше — не блокируем UI вообще.
+  // ═══════════════════════════════════════════════════
+  if (freshTiles.length === 0) {
+    if (showedFromCache > 0) {
+      showLoadingBar(`Из кэша: ${showedFromCache} зон`, 'count');
+      setTimeout(hideLoadingBar, 1200);
+    }
+    return;
+  }
+
+  showLoadingBar(`Загрузка ${freshTiles.length} зон…`);
+
+  const promises = freshTiles.map(({ key, lat, lng }) => {
     const c = tileCenter(lat, lng);
     return loadTile(c.lat, c.lng, key, mySeq)
       .catch(() => ({ added: 0 }))
@@ -642,7 +688,6 @@ async function loadForCurrentView() {
   });
 
   const results = await Promise.allSettled(promises);
-
   if (mySeq !== loadSeq) return;
 
   let total = 0;
@@ -660,7 +705,7 @@ async function loadForCurrentView() {
   if (total > 0) {
     showLoadingBar(`Найдено: +${total}`, 'count');
   } else if (fromCache > 0) {
-    showLoadingBar(`Загружено из кэша: ${fromCache} зон`, 'count');
+    showLoadingBar(`Из кэша: ${fromCache} зон`, 'count');
   } else {
     showLoadingBar('В этих местах пока ничего нет', 'empty');
   }
@@ -900,7 +945,6 @@ async function handleVote(toilet, key, value) {
   votes[key] = value;
   saveUserVotes(toilet.id, votes);
 
-  // Firebase transaction — честная синхронизация
   if (FIREBASE_ENABLED && fbDb && toilet.fbid) {
     try {
       await fbDb.ref(`toilets/${toilet.fbid}/votes/${key}`)
