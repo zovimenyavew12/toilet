@@ -607,14 +607,9 @@ async function loadForCurrentView() {
   hint.classList.remove('show');
 
   // 🔑 Padding: радиус 1 на зуме 14+, иначе 0. Умножаем на 1.25 для предзагрузки соседей.
-  const baseRadius = zoom >= 14 ? 1 : 0;
-  const tiles = getTilesAround(baseRadius * 1.25);
-
-  // 🔑 Защита от слишком большой области (страна вместо города)
-  if (tiles.length > 9) {
-    console.log(`⚠️ Слишком много ячеек: ${tiles.length}, приблизьте карту`);
-    hideLoadingBar();
-    return;
+  const radius = zoom >= 14 ? 1 : 0;
+  let tiles = getTilesAround(radius);                // 3×3 = 9 тайлов
+  if (tiles.length > 9) {                            // не выходим — обрезаем...обрезаем до 3×3...
   }
 
   const mySeq = ++loadSeq;
