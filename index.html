@@ -624,6 +624,64 @@ async function loadPrecomputedToilets(lat, lng) {
   }
 }
 
+// 🔑 Загружает precomputed-город по центру карты (для случая, когда пользователь
+//    смотрит другой город, а не тот, где он физически находится).
+//    Возвращает количество добавленных туалетов.
+const loadedPrecomputedCities = new Set();
+
+async function loadPrecomputedForCenter() {
+  if (!FIREBASE_ENABLED || !fbDb) return 0;
+
+  const c = map.getCenter();
+  const lat = c[0], lng = c[1];
+
+  // Ищем ближайший precomputed-город к центру карты
+  let nearest = null, minD = Infinity;
+  for (const city of PRECOMPUTED_CITIES) {
+    const dLat = (lat - city.lat) * 111;
+    const dLng = (lng - city.lng) * 111 * Math.cos(lat * Math.PI / 180);
+    const d = Math.sqrt(dLat * dLat + dLng * dLng);
+    if (d < minD) { minD = d; nearest = city; }
+  }
+
+  // Если ближайший город дальше 60 км — precomputed не поможет
+  if (!nearest || minD > PRECOMPUTED_MAX_DIST_KM) return 0;
+
+  // Если уже загружен в этой сессии — не грузим повторно
+  if (loadedPrecomputedCities.has(nearest.name)) return 0;
+
+  loadedPrecomputedCities.add(nearest.name);
+  console.log(`🎯 Precomputed для центра: ${nearest.name} (${Math.round(minD)} км)`);
+
+  try {
+    const snap = await fbDb.ref('precomputed/' + nearest.name).once('value');
+    const data = snap.val();
+    if (!data || !data.toilets) return 0;
+
+    let added = 0;
+    for (const [id, t] of Object.entries(data.toilets)) {
+      if (toiletsById.has(id)) continue;
+      toiletsById.set(id, {
+        id,
+        name: t.n || 'Туалет',
+        address: t.a || 'Адрес не указан',
+        latitude: t.lt,
+        longitude: t.ln,
+        category: t.c || 'other',
+        source: 'OSM',
+        access_code: null,
+      });
+      added++;
+    }
+    console.log(`✅ Precomputed ${nearest.name}: +${added} туалетов`);
+    if (added > 0) scheduleRender();
+    return added;
+  } catch (e) {
+    console.warn('Precomputed center load failed:', e.message);
+    return 0;
+  }
+}
+  
 /* ====================== ТАЙЛЫ ====================== */
 function getTilesAround(radius) {
   const c = map.getCenter();
@@ -966,8 +1024,16 @@ function onMapMoved() {
   if (pickMode) return;
   if (isCentering) return;
   if (!locationDetermined) locationDetermined = true;
+
   clearTimeout(moveDebounceTimer);
-  moveDebounceTimer = setTimeout(loadForCurrentView, MOVE_DEBOUNCE_MS);
+  moveDebounceTimer = setTimeout(async () => {
+    // 🎯 Сначала проверяем — может, пользователь уехал в другой precomputed-город
+    //    Тогда грузим из Firebase мгновенно, а не ждём Overpass
+    await loadPrecomputedForCenter();
+    // Затем — обычная загрузка тайлов (для точности и обновлений)
+    loadForCurrentView();
+  }, MOVE_DEBOUNCE_MS);
+
   clearTimeout(renderDebounceTimer);
   renderDebounceTimer = setTimeout(scheduleRender, 200);
 }
@@ -1650,9 +1716,13 @@ async function init() {
     map.setCenter([pos.lat, pos.lng], 15, { duration: 0 });
     setTimeout(() => { isCentering = false; }, 200);
 
+    // 🎯 ШАГ 1: пробуем precomputed (мгновенно из Firebase)
     updateLoader('Загружаем туалеты…');
     const precomputedCount = await loadPrecomputedToilets(pos.lat, pos.lng);
-
+    // Запоминаем город, чтобы не грузить его повторно при движении карты
+    const nearestStart = findNearestPrecomputedCity(pos.lat, pos.lng);
+    if (nearestStart) loadedPrecomputedCities.add(nearestStart.city.name);
+    
     if (precomputedCount > 0) {
       try {
         const osmSnap = await fbDb.ref('osm_data').once('value');
@@ -1678,9 +1748,18 @@ async function init() {
       locationDetermined = true;
       loadForCurrentView();
     }
-  } else {
+    } else {
+  
     locationDetermined = false;
     showToast('Разрешите геолокацию или сдвиньте карту');
+
+    // Пробуем загрузить precomputed для центра карты
+    const loaded = await loadPrecomputedForCenter();
+    if (loaded > 0) {
+      scheduleRender();
+      showLoadingBar(`Загружено ${loaded} туалетов`, 'count');
+      setTimeout(hideLoadingBar, 1500);
+    }
   }
 }
 
