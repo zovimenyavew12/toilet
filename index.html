@@ -94,7 +94,6 @@ html, body {
 }
 #zoom-hint.show { opacity: 1; }
 
-/* Подсказка при выборе точки */
 #pick-hint {
   position: fixed; top: calc(54px + env(safe-area-inset-top));
   left: 50%; transform: translateX(-50%) translateY(-10px);
@@ -136,8 +135,7 @@ html, body {
 }
 #loader-text { color: var(--tg-hint); font-size: 14px; }
 
-/* Кнопки на карте */
-#sos-btn, #add-btn {
+#sos-btn, #add-btn, #locate-btn {
   position: fixed; right: 20px;
   width: 64px; height: 64px; border-radius: 50%;
   color: #fff; font-weight: 800; font-size: 14px;
@@ -158,7 +156,21 @@ html, body {
   font-size: 32px; font-weight: 400;
   line-height: 1;
 }
-#sos-btn:active, #add-btn:active { transform: scale(0.92); }
+#locate-btn {
+  bottom: calc(190px + env(safe-area-inset-bottom));
+  background: #2481cc;
+  box-shadow: 0 6px 16px rgba(36,129,204,0.45);
+  font-size: 26px; font-weight: 400;
+  line-height: 1;
+}
+#sos-btn:active, #add-btn:active, #locate-btn:active { transform: scale(0.92); }
+#locate-btn.loading {
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.9); opacity: 0.7; }
+}
 
 #bottom-sheet {
   position: fixed; left: 0; right: 0; bottom: 0;
@@ -320,7 +332,6 @@ html, body {
   color: var(--tg-hint);
 }
 
-/* Диалоги */
 #edit-dialog, #add-dialog {
   position: fixed; inset: 0; background: rgba(0,0,0,0.55);
   display: flex; align-items: center; justify-content: center;
@@ -426,6 +437,7 @@ html, body {
   <button id="pick-cancel">Отмена</button>
 </div>
 
+<button id="locate-btn" title="Моё местоположение">📍</button>
 <button id="add-btn" title="Добавить туалет">+</button>
 <button id="sos-btn" title="Ближайший туалет">SOS</button>
 
@@ -469,7 +481,6 @@ html, body {
   </div>
 </div>
 
-<!-- Диалог редактирования кода -->
 <div id="edit-dialog" class="hidden">
   <div class="dialog-box">
     <h3>Код доступа</h3>
@@ -482,7 +493,6 @@ html, body {
   </div>
 </div>
 
-<!-- Диалог добавления туалета -->
 <div id="add-dialog" class="hidden">
   <div class="dialog-box">
     <h3>Добавить туалет</h3>
@@ -524,15 +534,15 @@ html, body {
 <script>
 /* ====================== КОНФИГ ====================== */
 const MIN_ZOOM_FOR_LOAD = 13;
-const MOVE_DEBOUNCE_MS = 1000;
-const SEARCH_RADIUS = 5000;
+const MOVE_DEBOUNCE_MS = 800;
+const SEARCH_RADIUS = 3000;
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const STORAGE_PREFIX = 'tg_toilet_code_';
 const MY_VOTES_KEY = 'tg_toilet_myvotes_';
 const USER_TOILETS_KEY = 'tg_toilet_user_added';
 const CACHE_PRECISION = 2;
 const MAX_MARKERS_ON_MAP = 400;
-const OVERPASS_TIMEOUT_MS = 14000;
+const OVERPASS_TIMEOUT_MS = 8000;
 
 const OVERPASS_ENDPOINTS = [
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
@@ -553,41 +563,41 @@ const CATEGORIES = {
 };
 
 const QUERIES = [
-  { cat: 'free', q: (lat, lng) => `[out:json][timeout:12];
+  { cat: 'free', q: (lat, lng) => `[out:json][timeout:10];
     ( nwr["amenity"="toilets"](around:${SEARCH_RADIUS},${lat},${lng}); );
     out center 80;` },
 
-  { cat: 'transport', q: (lat, lng) => `[out:json][timeout:12];
+  { cat: 'transport', q: (lat, lng) => `[out:json][timeout:10];
     (
       nwr["railway"="station"](around:${SEARCH_RADIUS},${lat},${lng});
       nwr["amenity"="bus_station"](around:${SEARCH_RADIUS},${lat},${lng});
-      nwr["aeroway"="aerodrome"](around:15000,${lat},${lng});
+      nwr["aeroway"="aerodrome"](around:10000,${lat},${lng});
     );
     out center 40;` },
 
-  { cat: 'mall', q: (lat, lng) => `[out:json][timeout:12];
+  { cat: 'mall', q: (lat, lng) => `[out:json][timeout:10];
     (
       nwr["shop"="mall"](around:${SEARCH_RADIUS},${lat},${lng});
       nwr["shop"="department_store"](around:${SEARCH_RADIUS},${lat},${lng});
     );
     out center 40;` },
 
-  { cat: 'fastfood', q: (lat, lng) => `[out:json][timeout:12];
+  { cat: 'fastfood', q: (lat, lng) => `[out:json][timeout:10];
     ( nwr["amenity"="fast_food"](around:${SEARCH_RADIUS},${lat},${lng}); );
     out center 60;` },
 
-  { cat: 'hospital', q: (lat, lng) => `[out:json][timeout:12];
+  { cat: 'hospital', q: (lat, lng) => `[out:json][timeout:10];
     (
       nwr["amenity"="hospital"](around:${SEARCH_RADIUS},${lat},${lng});
       nwr["amenity"="clinic"](around:${SEARCH_RADIUS},${lat},${lng});
     );
     out center 40;` },
 
-  { cat: 'fuel', q: (lat, lng) => `[out:json][timeout:12];
+  { cat: 'fuel', q: (lat, lng) => `[out:json][timeout:10];
     ( nwr["amenity"="fuel"](around:${SEARCH_RADIUS},${lat},${lng}); );
     out center 40;` },
 
-  { cat: 'cafe', q: (lat, lng) => `[out:json][timeout:12];
+  { cat: 'cafe', q: (lat, lng) => `[out:json][timeout:10];
     (
       nwr["amenity"="cafe"](around:${SEARCH_RADIUS},${lat},${lng});
       nwr["amenity"="restaurant"](around:${SEARCH_RADIUS},${lat},${lng});
@@ -606,8 +616,8 @@ const REVIEW_TYPES = {
 const tg = window.Telegram?.WebApp;
 let map;
 let userPlacemark = null;
-let toiletsById = new Map();       // OSM + внешние
-let userToiletsById = new Map();   // добавленные пользователем
+let toiletsById = new Map();
+let userToiletsById = new Map();
 let currentPosition = null;
 let selectedToilet = null;
 const activeCategories = new Set(Object.keys(CATEGORIES));
@@ -620,18 +630,16 @@ const queriedCenters = new Set();
 const svgCache = new Map();
 let suppressMapCloseUntil = 0;
 
-/* Состояние добавления */
-let addingToilet = null; // { name, category, address, code, lat, lng }
+let addingToilet = null;
 let pickMode = false;
+let tempPickMarker = null;
 
 /* ====================== TELEGRAM ====================== */
 function initTelegram() {
   if (!tg) return;
   tg.ready();
   tg.expand();
-  try {
-    if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
-  } catch (_) {}
+  try { if (tg.disableVerticalSwipes) tg.disableVerticalSwipes(); } catch (_) {}
   applyTelegramTheme();
   tg.onEvent('themeChanged', applyTelegramTheme);
 }
@@ -665,22 +673,16 @@ function loadUserToilets() {
     const raw = localStorage.getItem(USER_TOILETS_KEY);
     if (!raw) return;
     const arr = JSON.parse(raw);
-    for (const t of arr) {
-      userToiletsById.set(t.id, t);
-    }
+    for (const t of arr) userToiletsById.set(t.id, t);
     console.log(`Загружено своих туалетов: ${userToiletsById.size}`);
-  } catch (e) {
-    console.warn('Не удалось загрузить свои туалеты:', e);
-  }
+  } catch (e) { console.warn('Не удалось загрузить свои туалеты:', e); }
 }
 
 function saveUserToilets() {
   try {
     const arr = Array.from(userToiletsById.values());
     localStorage.setItem(USER_TOILETS_KEY, JSON.stringify(arr));
-  } catch (e) {
-    console.warn('Не удалось сохранить свои туалеты:', e);
-  }
+  } catch (e) { console.warn('Не удалось сохранить свои туалеты:', e); }
 }
 
 function makeUserToiletId() {
@@ -877,7 +879,6 @@ async function fetchOverpass(query, cacheKey) {
 
   let lastError = null;
   for (const endpoint of OVERPASS_ENDPOINTS) {
-    // 1. Прямой запрос
     try {
       const data = await tryOverpassFetch(endpoint, query, OVERPASS_TIMEOUT_MS);
       if (data) {
@@ -886,10 +887,9 @@ async function fetchOverpass(query, cacheKey) {
       }
     } catch (e) { lastError = e; }
 
-    // 2. Через CORS-прокси
     try {
       const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(endpoint);
-      const data = await tryOverpassFetch(proxied, query, OVERPASS_TIMEOUT_MS + 5000);
+      const data = await tryOverpassFetch(proxied, query, OVERPASS_TIMEOUT_MS + 3000);
       if (data) {
         try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data })); } catch (_) {}
         return data;
@@ -954,7 +954,6 @@ function initMap() {
       });
 
       map.events.add('click', (e) => {
-        // Режим выбора точки
         if (pickMode) {
           const coords = e.get('coords');
           onPickPoint(coords[0], coords[1]);
@@ -1008,39 +1007,49 @@ async function loadForCurrentView() {
   const mySeq = ++loadSequence;
   showLoadingBar('Ищем туалеты…');
 
+  let totalNew = 0;
+  let completed = 0;
+  const totalQueries = QUERIES.length;
+
   const tasks = QUERIES.map(({ cat, q }) => {
     const cacheKey = `q_${cat}_${centerKey}`;
     return fetchOverpass(q(lat, lng), cacheKey)
-      .then((data) => ({ cat, elements: data.elements || [] }))
-      .catch(() => ({ cat, elements: [] }));
+      .then((data) => {
+        if (mySeq !== loadSequence) return;
+        const elements = data.elements || [];
+        let added = 0;
+        for (const el of elements) {
+          const t = osmToToilet(el, cat);
+          if (t && !toiletsById.has(t.id)) {
+            toiletsById.set(t.id, t);
+            added++;
+          }
+        }
+        totalNew += added;
+        completed++;
+        if (added > 0) scheduleRender();
+        updateLoadProgress(completed, totalQueries, totalNew);
+      })
+      .catch(() => {
+        completed++;
+        updateLoadProgress(completed, totalQueries, totalNew);
+      });
   });
 
-  let total = 0;
-  const results = await Promise.allSettled(tasks);
-
-  if (mySeq !== loadSequence) return;
-
-  for (const r of results) {
-    if (r.status !== 'fulfilled') continue;
-    const { cat, elements } = r.value;
-    for (const el of elements) {
-      const t = osmToToilet(el, cat);
-      if (t && !toiletsById.has(t.id)) {
-        toiletsById.set(t.id, t);
-        total++;
-      }
+  Promise.allSettled(tasks).then(() => {
+    if (mySeq !== loadSequence) return;
+    console.log(`✅ Итог: +${totalNew}, всего: ${toiletsById.size}`);
+    if (totalNew > 0) {
+      showLoadingBar(`Найдено: ${totalNew}`, 'count');
+    } else {
+      showLoadingBar('Рядом пока ничего нет', 'empty');
     }
-  }
+    setTimeout(hideLoadingBar, 1500);
+  });
+}
 
-  console.log(`✅ Загружено новых: ${total}, всего: ${toiletsById.size}`);
-  scheduleRender();
-
-  if (total > 0) {
-    showLoadingBar(`Найдено: +${total}`, 'count');
-  } else {
-    showLoadingBar('Рядом пока ничего нет', 'empty');
-  }
-  setTimeout(hideLoadingBar, 1800);
+function updateLoadProgress(done, total, found) {
+  showLoadingBar(`Загрузка ${done}/${total} · ${found} найдено`);
 }
 
 /* ====================== ИКОНКИ ====================== */
@@ -1192,8 +1201,6 @@ function findNearestWorkingToilet() {
 
   const notBroken = all.filter((t) => !isLikelyBroken(t.id));
   const pool = notBroken.length ? notBroken : all;
-
-  // Приоритет: пользовательские > confirmed > assumed
   const userAdded = pool.filter((t) => t.source === 'user');
   const confirmed = pool.filter((t) => !CATEGORIES[t.category].assumed && t.source !== 'user');
   const candidates = userAdded.length ? userAdded : (confirmed.length ? confirmed : pool);
@@ -1241,7 +1248,6 @@ function openBottomSheet(toilet) {
   if (cat.assumed && toilet.source !== 'user') note.classList.remove('hidden');
   else note.classList.add('hidden');
 
-  // Кнопка "Удалить" — только для своих туалетов
   const delBtn = document.getElementById('bs-delete-btn');
   if (toilet.source === 'user') delBtn.classList.remove('hidden');
   else delBtn.classList.add('hidden');
@@ -1303,7 +1309,6 @@ function openAddDialog() {
   document.getElementById('add-coords').textContent = '—';
 
   renderAddCats();
-
   document.getElementById('add-dialog').classList.remove('hidden');
   haptic();
 }
@@ -1339,7 +1344,6 @@ function startPickMode() {
   document.getElementById('pick-hint').classList.add('show');
   haptic();
 
-  // Добавляем временный маркер в центр
   if (tempPickMarker) map.geoObjects.remove(tempPickMarker);
   const center = map.getCenter();
   tempPickMarker = new ymaps.Placemark(
@@ -1356,8 +1360,6 @@ function startPickMode() {
   map.geoObjects.add(tempPickMarker);
 }
 
-let tempPickMarker = null;
-
 function exitPickMode() {
   pickMode = false;
   document.getElementById('pick-hint').classList.remove('show');
@@ -1369,12 +1371,10 @@ function exitPickMode() {
 
 function onPickPoint(lat, lng) {
   if (!addingToilet) return;
-
   addingToilet.lat = lat;
   addingToilet.lng = lng;
   document.getElementById('add-coords').textContent =
     lat.toFixed(5) + ', ' + lng.toFixed(5);
-
   exitPickMode();
   document.getElementById('add-dialog').classList.remove('hidden');
   haptic('medium');
@@ -1395,8 +1395,7 @@ function saveNewToilet() {
 
   const id = makeUserToiletId();
   const toilet = {
-    id,
-    name,
+    id, name,
     address: address || 'Адрес не указан',
     latitude: addingToilet.lat,
     longitude: addingToilet.lng,
@@ -1408,15 +1407,12 @@ function saveNewToilet() {
   userToiletsById.set(id, toilet);
   saveUserToilets();
 
-  if (code) {
-    localStorage.setItem(STORAGE_PREFIX + id, code);
-  }
+  if (code) localStorage.setItem(STORAGE_PREFIX + id, code);
 
   closeAddDialog();
   scheduleRender();
   showToast('Туалет добавлен!');
 
-  // Центрируем и открываем карточку
   map.setCenter([toilet.latitude, toilet.longitude], 17, { duration: 500 });
   setTimeout(() => openBottomSheet(toilet), 700);
 }
@@ -1429,8 +1425,6 @@ function deleteSelectedToilet() {
 
   userToiletsById.delete(id);
   saveUserToilets();
-
-  // Удаляем код доступа
   try { localStorage.removeItem(STORAGE_PREFIX + id); } catch (_) {}
 
   closeBottomSheet();
@@ -1475,7 +1469,6 @@ document.getElementById('edit-save').addEventListener('click', () => {
   localStorage.setItem(STORAGE_PREFIX + selectedToilet.id, newCode);
   selectedToilet.access_code = newCode;
 
-  // Если это свой туалет — обновляем и в userToiletsById
   if (selectedToilet.source === 'user') {
     const t = userToiletsById.get(selectedToilet.id);
     if (t) { t.access_code = newCode; saveUserToilets(); }
@@ -1504,6 +1497,30 @@ document.getElementById('bs-delete-btn').addEventListener('click', (e) => {
 
 document.getElementById('sos-btn').addEventListener('click', findNearestWorkingToilet);
 document.getElementById('add-btn').addEventListener('click', openAddDialog);
+
+document.getElementById('locate-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('locate-btn');
+  btn.classList.add('loading');
+  haptic();
+
+  try {
+    const pos = await getUserPosition();
+    currentPosition = pos;
+    map.setCenter([pos.lat, pos.lng], 16, {
+      duration: 600,
+      timingFunction: 'ease-in-out',
+    });
+    scheduleRender();
+    showToast('Вы здесь');
+    haptic('medium');
+  } catch (e) {
+    let msg = 'Не удалось определить геопозицию';
+    if (e && e.code === 1) msg = 'Разрешите доступ к геопозиции в настройках';
+    showToast(msg);
+  } finally {
+    btn.classList.remove('loading');
+  }
+});
 
 document.getElementById('add-cancel').addEventListener('click', closeAddDialog);
 document.getElementById('add-save').addEventListener('click', saveNewToilet);
@@ -1566,6 +1583,7 @@ function hideLoadingBar() {
 function updateLoader(text) { document.getElementById('loader-text').textContent = text; }
 function hideLoader() {
   const l = document.getElementById('loader');
+  if (!l) return;
   l.classList.add('hidden');
   setTimeout(() => l.remove(), 400);
 }
@@ -1595,13 +1613,14 @@ async function init() {
     map.setCenter([currentPosition.lat, currentPosition.lng], 13, { duration: 500 });
   }
 
-  updateLoader('Ищем туалеты рядом…');
-  await loadForCurrentView();
-
-  // Свои туалеты тоже отрисуем
-  scheduleRender();
-
+  // Скрываем loader — пользователь может пользоваться картой
   hideLoader();
+
+  // Данные грузятся в фоне
+  loadForCurrentView();
+
+  // Свои туалеты отрисуем сразу
+  scheduleRender();
 }
 
 init();
