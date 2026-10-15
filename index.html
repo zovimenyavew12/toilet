@@ -360,6 +360,125 @@ async function initFirebase() {
   }
 }
 
+/* ====================== PRECOMPUTED CITIES ====================== */
+// 🔑 Список городов, для которых база уже залита в Firebase.
+//    Клиент берёт только ОДИН ближайший — не все сразу.
+const PRECOMPUTED_CITIES = [
+  { name: 'moscow',       lat: 55.7558, lng: 37.6173, r: 30000 },
+  { name: 'spb',          lat: 59.9343, lng: 30.3351, r: 18000 },
+  { name: 'novosibirsk',  lat: 55.0084, lng: 82.9357, r: 18000 },
+  { name: 'ekaterinburg', lat: 56.8389, lng: 60.6057, r: 18000 },
+  { name: 'kazan',        lat: 55.8304, lng: 49.0661, r: 15000 },
+  { name: 'nizhny',       lat: 56.3269, lng: 44.0059, r: 15000 },
+  { name: 'chelyabinsk',  lat: 55.1644, lng: 61.4368, r: 15000 },
+  { name: 'krasnoyarsk',  lat: 56.0153, lng: 92.8932, r: 15000 },
+  { name: 'samara',       lat: 53.1959, lng: 50.1002, r: 15000 },
+  { name: 'ufa',          lat: 54.7388, lng: 55.9721, r: 15000 },
+  { name: 'rostov',       lat: 47.2357, lng: 39.7015, r: 15000 },
+  { name: 'omsk',         lat: 54.9885, lng: 73.3242, r: 15000 },
+  { name: 'krasnodar',    lat: 45.0355, lng: 38.9753, r: 15000 },
+  { name: 'voronezh',     lat: 51.6720, lng: 39.1843, r: 15000 },
+  { name: 'volgograd',    lat: 48.7080, lng: 44.5133, r: 18000 },
+  { name: 'perm',         lat: 58.0105, lng: 56.2502, r: 15000 },
+  { name: 'saratov',      lat: 51.5336, lng: 46.0343, r: 15000 },
+  { name: 'tyumen',       lat: 57.1522, lng: 65.5272, r: 12000 },
+  { name: 'tolyatti',     lat: 53.5303, lng: 49.3461, r: 12000 },
+  { name: 'barnaul',      lat: 53.3548, lng: 83.7698, r: 12000 },
+  { name: 'izhevsk',      lat: 56.8527, lng: 53.2115, r: 12000 },
+  { name: 'ulyanovsk',    lat: 54.3142, lng: 48.4031, r: 12000 },
+  { name: 'irkutsk',      lat: 52.2871, lng: 104.3050, r: 12000 },
+  { name: 'khabarovsk',   lat: 48.4827, lng: 135.0838, r: 12000 },
+  { name: 'yaroslavl',    lat: 57.6261, lng: 39.8845, r: 12000 },
+  { name: 'vladivostok',  lat: 43.1155, lng: 131.8855, r: 12000 },
+  { name: 'makhachkala',  lat: 42.9764, lng: 47.5024, r: 12000 },
+  { name: 'tomsk',        lat: 56.4977, lng: 84.9744, r: 12000 },
+  { name: 'orenburg',     lat: 51.7727, lng: 55.0988, r: 12000 },
+  { name: 'kemerovo',     lat: 55.3547, lng: 86.0873, r: 12000 },
+  { name: 'novokuznetsk', lat: 53.7557, lng: 87.1099, r: 12000 },
+  { name: 'ryazan',       lat: 54.6269, lng: 39.6916, r: 12000 },
+  { name: 'astrakhan',    lat: 46.3497, lng: 48.0408, r: 12000 },
+  { name: 'naberezhnye',  lat: 55.7436, lng: 52.3958, r: 10000 },
+  { name: 'penza',        lat: 53.2007, lng: 45.0046, r: 10000 },
+  { name: 'lipetsk',      lat: 52.6031, lng: 39.5708, r: 10000 },
+  { name: 'kirov',        lat: 58.6036, lng: 49.6680, r: 10000 },
+  { name: 'cheboksary',   lat: 56.1439, lng: 47.2489, r: 10000 },
+  { name: 'tula',         lat: 54.1961, lng: 37.6182, r: 10000 },
+  { name: 'kaliningrad',  lat: 54.7104, lng: 20.4522, r: 12000 },
+  { name: 'kursk',        lat: 51.7373, lng: 36.1874, r: 10000 },
+  { name: 'sochi',        lat: 43.5855, lng: 39.7231, r: 18000 },
+  { name: 'stavropol',    lat: 45.0428, lng: 41.9734, r: 10000 },
+  { name: 'ulan-ude',     lat: 51.8335, lng: 107.5841, r: 10000 },
+  { name: 'tver',         lat: 56.8587, lng: 35.9176, r: 10000 },
+  { name: 'magnitogorsk', lat: 53.4186, lng: 59.0472, r: 10000 },
+  { name: 'ivanovo',      lat: 57.0004, lng: 40.9739, r: 10000 },
+  { name: 'bryansk',      lat: 53.2521, lng: 34.3717, r: 10000 },
+  { name: 'sevastopol',   lat: 44.6166, lng: 33.5254, r: 12000 },
+  { name: 'simferopol',   lat: 44.9521, lng: 34.1024, r: 10000 },
+];
+
+// 🔑 Максимальное расстояние до города — 60 км.
+//    Если пользователь дальше — не берём precomputed, грузим через Overpass.
+const PRECOMPUTED_MAX_DIST_KM = 60;
+
+// 🔑 Находим ближайший precomputed-город
+function findNearestPrecomputedCity(lat, lng) {
+  let nearest = null;
+  let minD = Infinity;
+  for (const c of PRECOMPUTED_CITIES) {
+    // Грубая формула (для 60 км точность ±1 км — хватает)
+    const dLat = (lat - c.lat) * 111;
+    const dLng = (lng - c.lng) * 111 * Math.cos(lat * Math.PI / 180);
+    const d = Math.sqrt(dLat * dLat + dLng * dLng);
+    if (d < minD) { minD = d; nearest = c; }
+  }
+  return minD < PRECOMPUTED_MAX_DIST_KM ? { city: nearest, dist: minD } : null;
+}
+
+// 🔑 Загружаем туалеты ближайшего города из Firebase
+async function loadPrecomputedToilets(lat, lng) {
+  if (!FIREBASE_ENABLED || !fbDb) return 0;
+
+  const found = findNearestPrecomputedCity(lat, lng);
+  if (!found) {
+    console.log('🎯 Precomputed: рядом нет городов из базы');
+    return 0;
+  }
+
+  const { city, dist } = found;
+  console.log(`🎯 Ближайший город: ${city.name} (${Math.round(dist)} км)`);
+
+  try {
+    const snap = await fbDb.ref('precomputed/' + city.name).once('value');
+    const data = snap.val();
+    if (!data || !data.toilets) {
+      console.log(`🎯 Precomputed ${city.name}: пусто в базе`);
+      return 0;
+    }
+
+    let added = 0;
+    for (const [id, t] of Object.entries(data.toilets)) {
+      if (toiletsById.has(id)) continue;
+      toiletsById.set(id, {
+        id,
+        name: t.n || 'Туалет',
+        address: t.a || 'Адрес не указан',
+        latitude: t.lt,
+        longitude: t.ln,
+        category: t.c || 'other',
+        source: 'OSM',
+        access_code: null,
+      });
+      added++;
+    }
+
+    console.log(`✅ Precomputed ${city.name}: +${added} туалетов (всего в базе ${data.count})`);
+    return added;
+  } catch (e) {
+    console.warn('Precomputed load failed:', e.message);
+    return 0;
+  }
+}
+  
 /* ====================== ТАЙЛЫ ====================== */
 // 🔑 Принимает float radius — можно расширять область для предзагрузки соседей
 function getTilesAround(radius) {
@@ -1376,7 +1495,7 @@ async function init() {
   updateLoader('Загружаем карту…');
   await initMap();
 
-  // Firebase — в фоне
+  // Firebase в фоне (не блокирует)
   initFirebase().catch(e => console.warn('FB init error:', e));
 
   updateLoader('Определяем вашу геопозицию…');
@@ -1390,12 +1509,30 @@ async function init() {
     currentPosition = pos;
     isCentering = true;
     map.setCenter([pos.lat, pos.lng], 15, { duration: 0 });
-    setTimeout(() => {
-      isCentering = false;
+
+    setTimeout(() => { isCentering = false; }, 200);
+
+    // 🎯 ШАГ 1: пробуем precomputed (мгновенно из Firebase)
+    updateLoader('Загружаем туалеты…');
+    const precomputedCount = await loadPrecomputedToilets(pos.lat, pos.lng);
+
+    if (precomputedCount > 0) {
+      // ✅ Есть готовые данные — рендерим и радуемся
+      scheduleRender();
+      showLoadingBar(`Загружено ${precomputedCount} туалетов`, 'count');
+      setTimeout(hideLoadingBar, 1500);
+
+      // 🎯 ШАГ 2: в фоне всё равно грузим тайлы — 
+      //    чтобы подтянуть то, чего нет в precomputed (свежие пользовательские точки)
+      setTimeout(() => {
+        locationDetermined = true;
+        loadForCurrentView();
+      }, 800);
+    } else {
+      // 🎯 ШАГ 3: пользователь далеко от крупных городов — грузим через Overpass
       locationDetermined = true;
       loadForCurrentView();
-    }, 150);
-    scheduleRender();
+    }
   } else {
     locationDetermined = false;
     showToast('Разрешите геолокацию или сдвиньте карту');
