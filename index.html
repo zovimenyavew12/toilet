@@ -303,14 +303,12 @@ async function initFirebase() {
     fbUid = cred.user.uid;
     console.log('🔥 Firebase OK, uid:', fbUid);
 
-    // Слушаем ВСЕ пользовательские туалеты
+    // ── 1. Пользовательские туалеты (добавленные через «+») ──
     fbDb.ref('toilets').on('value', (snapshot) => {
       const data = snapshot.val() || {};
       let changed = false;
-
       for (const [id, t] of Object.entries(data)) {
         if (!t || !t.lat || !t.lng) continue;
-
         const existing = toiletsById.get(id);
         if (existing) {
           const oldVotes = JSON.stringify(existing.votes || null);
@@ -338,10 +336,34 @@ async function initFirebase() {
           changed = true;
         }
       }
-
       if (changed) {
-        console.log('🔥 Firebase: обновление', toiletsById.size);
+        console.log('🔥 Firebase: обновление пользовательских', toiletsById.size);
         scheduleRender();
+        refreshOpenSheet();
+      }
+    }, (err) => console.warn('Firebase toilets error:', err));
+
+    // ── 2. 🔑 Голоса и коды для OSM-туалетов ──
+    fbDb.ref('osm_data').on('value', (snapshot) => {
+      const data = snapshot.val() || {};
+      let changed = false;
+      for (const [osmId, entry] of Object.entries(data)) {
+        const t = toiletsById.get(osmId);
+        if (!t) continue;   // нет такой точки на карте — пропускаем
+
+        const oldVotes = JSON.stringify(t.votes || null);
+        const newVotes = JSON.stringify(entry.votes || null);
+        const oldCode = t.access_code;
+        const newCode = entry.code || null;
+
+        if (oldVotes !== newVotes || oldCode !== newCode) {
+          t.votes = entry.votes || null;
+          if (entry.code != null) t.access_code = entry.code;
+          changed = true;
+        }
+      }
+      if (changed) {
+        console.log('🔥 Firebase: обновление OSM-голосов');
         if (selectedToilet) {
           const updated = toiletsById.get(selectedToilet.id);
           if (updated) {
@@ -352,11 +374,22 @@ async function initFirebase() {
           }
         }
       }
-    }, (err) => {
-      console.warn('Firebase listener error:', err);
-    });
+    }, (err) => console.warn('Firebase osm_data error:', err));
+
   } catch (e) {
     console.error('Firebase init failed:', e);
+  }
+}
+
+// 🔑 Обновляет открытую карточку, если её данные изменились
+function refreshOpenSheet() {
+  if (!selectedToilet) return;
+  const updated = toiletsById.get(selectedToilet.id);
+  if (updated && updated !== selectedToilet) {
+    selectedToilet = updated;
+    renderReviews(updated);
+    updateNotWorkingNote();
+    updateCodeDisplay();
   }
 }
 
@@ -1083,18 +1116,29 @@ async function handleVote(toilet, key, value) {
   votes[key] = value;
   saveUserVotes(toilet.id, votes);
 
-  if (FIREBASE_ENABLED && fbDb && toilet.fbid) {
+  // 🔑 Выбираем путь в Firebase:
+  //    - user-туалеты (есть fbid) → toilets/{fbid}/votes/{key}
+  //    - OSM-туалеты             → osm_data/{id}/votes/{key}
+  if (FIREBASE_ENABLED && fbDb) {
+    const path = toilet.fbid
+      ? `toilets/${toilet.fbid}/votes/${key}`
+      : `osm_data/${toilet.id}/votes/${key}`;
+
     try {
-      await fbDb.ref(`toilets/${toilet.fbid}/votes/${key}`)
-        .transaction(cur => {
-          if (!cur) cur = { yes: 0, no: 0 };
-          if (prev === 'yes' && cur.yes > 0) cur.yes--;
-          if (prev === 'no' && cur.no > 0) cur.no--;
-          if (value === 'yes') cur.yes++;
-          if (value === 'no') cur.no++;
-          return cur;
-        });
-    } catch (e) { console.warn('Vote FB failed:', e); }
+      await fbDb.ref(path).transaction(cur => {
+        if (!cur) cur = { yes: 0, no: 0 };
+        if (prev === 'yes' && cur.yes > 0) cur.yes--;
+        if (prev === 'no' && cur.no > 0) cur.no--;
+        if (value === 'yes') cur.yes++;
+        if (value === 'no') cur.no++;
+        return cur;
+      });
+      console.log(`✅ Голос отправлен: ${path}`);
+    } catch (e) {
+      console.warn('Vote FB failed:', e);
+      showToast('Не удалось отправить голос');
+      return;
+    }
   }
 
   haptic('medium');
@@ -1388,14 +1432,26 @@ document.getElementById('edit-save').addEventListener('click', async () => {
   if (!newCode || !selectedToilet) return;
   localStorage.setItem(STORAGE_PREFIX + selectedToilet.id, newCode);
   selectedToilet.access_code = newCode;
-  if (FIREBASE_ENABLED && fbDb && selectedToilet.fbid) {
+
+  if (FIREBASE_ENABLED && fbDb) {
+    // 🔑 Тот же выбор пути, что и в handleVote
+    const path = selectedToilet.fbid
+      ? `toilets/${selectedToilet.fbid}/code`
+      : `osm_data/${selectedToilet.id}/code`;
+
     try {
-      await fbDb.ref('toilets/' + selectedToilet.fbid + '/code').set(newCode);
-    } catch (e) { console.warn('Code FB update failed:', e); }
+      await fbDb.ref(path).set(newCode);
+      console.log(`✅ Код отправлен: ${path}`);
+    } catch (e) {
+      console.warn('Code FB update failed:', e);
+      showToast('Не удалось сохранить код');
+      return;
+    }
   }
+
   document.getElementById('edit-dialog').classList.add('hidden');
   updateCodeDisplay();
-  showToast('Код сохранён!');
+  showToast('Код сохранён! Виден всем');
   haptic();
 });
 document.getElementById('bs-route-btn').addEventListener('click', (e) => {
@@ -1517,6 +1573,26 @@ async function init() {
     const precomputedCount = await loadPrecomputedToilets(pos.lat, pos.lng);
 
     if (precomputedCount > 0) {
+      // 🔑 ВАЖНО: после загрузки precomputed нужно ещё раз прочитать osm_data,
+      //    потому что listener сработал раньше, когда toiletsById был пуст.
+      //    Без этой строки пользователь не увидит уже накопленные голоса.
+      try {
+        const osmSnap = await fbDb.ref('osm_data').once('value');
+        const osmData = osmSnap.val() || {};
+        let votesApplied = 0;
+        for (const [osmId, entry] of Object.entries(osmData)) {
+          const t = toiletsById.get(osmId);
+          if (t) {
+            if (entry.votes) t.votes = entry.votes;
+            if (entry.code) t.access_code = entry.code;
+            votesApplied++;
+          }
+        }
+        console.log(`🗳 Применено голосов/кодов: ${votesApplied}`);
+      } catch (e) {
+        console.warn('osm_data re-read failed:', e.message);
+      }
+
       // ✅ Есть готовые данные — рендерим и радуемся
       scheduleRender();
       showLoadingBar(`Загружено ${precomputedCount} туалетов`, 'count');
