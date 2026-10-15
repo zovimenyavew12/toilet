@@ -6,6 +6,9 @@
 <title>Где Туалет?</title>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -134,18 +137,6 @@ html, body {
   animation: spin 0.9s linear infinite;
 }
 #loader-text { color: var(--tg-hint); font-size: 14px; line-height: 1.4; }
-#loader-retry {
-  margin-top: 8px;
-  padding: 10px 18px;
-  background: var(--tg-button);
-  color: var(--tg-button-text);
-  border: none; border-radius: 10px;
-  font-size: 14px; font-weight: 600;
-  cursor: pointer; font-family: inherit;
-  display: none;
-}
-#loader-retry.show { display: block; }
-#loader-retry:active { opacity: 0.8; }
 
 #sos-btn, #add-btn, #locate-btn {
   position: fixed; right: 20px;
@@ -176,9 +167,7 @@ html, body {
   line-height: 1;
 }
 #sos-btn:active, #add-btn:active, #locate-btn:active { transform: scale(0.92); }
-#locate-btn.loading {
-  animation: pulse 1s ease-in-out infinite;
-}
+#locate-btn.loading { animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(0.9); opacity: 0.7; }
@@ -233,26 +222,16 @@ html, body {
 }
 #bs-not-working-note.hidden { display: none; }
 
-.bs-actions {
-  display: flex; gap: 8px; margin-bottom: 14px;
-}
-.bs-actions .btn { flex: 1; }
-
-.btn {
+#bs-route-btn {
   width: 100%; padding: 13px; border-radius: 12px; border: none;
-  font-size: 15px; font-weight: 600; cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s; font-family: inherit;
+  background: var(--tg-button); color: var(--tg-button-text);
+  font-size: 15px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  margin-bottom: 14px;
+  transition: opacity 0.15s, transform 0.1s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-.btn:active { opacity: 0.75; transform: scale(0.98); }
-.btn-primary { background: var(--tg-button); color: var(--tg-button-text); }
-.btn-outline {
-  background: transparent; color: var(--tg-button);
-  border: 1.5px solid var(--tg-button);
-}
-.btn-danger {
-  background: transparent; color: #e53935;
-  border: 1.5px solid #e53935;
-}
+#bs-route-btn:active { opacity: 0.8; transform: scale(0.98); }
 
 #bs-reviews {
   padding: 14px 0;
@@ -316,6 +295,11 @@ html, body {
   background: var(--positive);
   transition: width 0.35s ease;
 }
+.review-bar-empty {
+  height: 100%;
+  width: 100%;
+  background: var(--tg-secondary-bg);
+}
 
 .code-row {
   display: flex; align-items: center; justify-content: space-between;
@@ -342,6 +326,18 @@ html, body {
 #bs-code-display.empty {
   font-size: 14px; letter-spacing: 0; font-weight: 500;
   color: var(--tg-hint);
+}
+
+.btn {
+  width: 100%; padding: 13px; border-radius: 12px; border: none;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s; font-family: inherit;
+}
+.btn:active { opacity: 0.75; transform: scale(0.98); }
+.btn-primary { background: var(--tg-button); color: var(--tg-button-text); }
+.btn-outline {
+  background: transparent; color: var(--tg-button);
+  border: 1.5px solid var(--tg-button);
 }
 
 #edit-dialog, #add-dialog {
@@ -470,10 +466,7 @@ html, body {
     ⛔ По отзывам пользователей туалет не работает
   </div>
 
-  <div class="bs-actions">
-    <button id="bs-route-btn" class="btn btn-primary">🧭 Маршрут</button>
-    <button id="bs-delete-btn" class="btn btn-danger hidden">🗑 Удалить</button>
-  </div>
+  <button id="bs-route-btn">🧭 Построить маршрут</button>
 
   <div id="bs-reviews">
     <div class="reviews-header">
@@ -537,28 +530,43 @@ html, body {
 
 <div id="toast"></div>
 <div id="loader">
-  <div class="spinner" id="loader-spinner"></div>
+  <div class="spinner"></div>
   <div id="loader-text">Загрузка…</div>
-  <button id="loader-retry">Указать местоположение вручную</button>
 </div>
 
 <script src="https://api-maps.yandex.ru/2.1/?apikey=3de2fd9f-e71a-4177-baf7-80f343a3afaf&lang=ru_RU"></script>
 
 <script>
+/* ====================== FIREBASE CONFIG ====================== */
+/* ⚠️ ВСТАВЬ СВОЙ КОНФИГ ИЗ FIREBASE CONSOLE СЮДА.
+   Пока оставь как есть — приложение будет работать в локальном режиме. */
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "000000000000",
+  appId: "1:000000000000:web:0000000000000000000000",
+};
+
+const FIREBASE_ENABLED = !FIREBASE_CONFIG.apiKey.includes('YOUR_API_KEY');
+
+let fbApp = null, fbDb = null, fbAuth = null, fbUid = null;
+let fbToiletsRef = null;
+
 /* ====================== КОНФИГ ====================== */
 const MIN_ZOOM_FOR_LOAD = 13;
-const MOVE_DEBOUNCE_MS = 800;
-const SEARCH_RADIUS = 3000;
-const CACHE_TTL_MS = 60 * 60 * 1000;
+const MOVE_DEBOUNCE_MS = 500;
+const TILE_SIZE_DEG = 0.05;      // ~5 км
+const TILE_LOAD_RADIUS = 1;      // тайлы ±1 вокруг текущего
+const SEARCH_RADIUS = 3500;
+const OVERPASS_TIMEOUT_MS = 7000;
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 часов для тайла
 const STORAGE_PREFIX = 'tg_toilet_code_';
 const MY_VOTES_KEY = 'tg_toilet_myvotes_';
-const USER_TOILETS_KEY = 'tg_toilet_user_added';
-const TOILET_CACHE_KEY = 'tg_toilet_cache_v1';
-const TOILET_CACHE_MAX = 5000;
-const LAST_POS_KEY = 'tg_last_position';
-const CACHE_PRECISION = 2;
-const MAX_MARKERS_ON_MAP = 400;
-const OVERPASS_TIMEOUT_MS = 8000;
+const USER_TOILETS_KEY = 'tg_toilet_user_added_v2';
+const TILE_CACHE_PREFIX = 'tg_tile_';
 
 const OVERPASS_ENDPOINTS = [
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
@@ -578,41 +586,42 @@ const CATEGORIES = {
   other:     { label: 'Другое',       emoji: '📌', color: '#757575', assumed: true },
 };
 
-const QUERIES = [
-  { cat: 'free', q: (lat, lng) => `[out:json][timeout:10];
+// Быстрый набор — грузится в первую очередь
+const FAST_QUERIES = [
+  { cat: 'free', q: (lat, lng) => `[out:json][timeout:8];
     ( nwr["amenity"="toilets"](around:${SEARCH_RADIUS},${lat},${lng}); );
-    out center 80;` },
-  { cat: 'transport', q: (lat, lng) => `[out:json][timeout:10];
-    (
-      nwr["railway"="station"](around:${SEARCH_RADIUS},${lat},${lng});
-      nwr["amenity"="bus_station"](around:${SEARCH_RADIUS},${lat},${lng});
-      nwr["aeroway"="aerodrome"](around:10000,${lat},${lng});
-    );
-    out center 40;` },
-  { cat: 'mall', q: (lat, lng) => `[out:json][timeout:10];
+    out center 60;` },
+  { cat: 'transport', q: (lat, lng) => `[out:json][timeout:8];
+    ( nwr["railway"="station"](around:${SEARCH_RADIUS},${lat},${lng}); );
+    out center 20;` },
+  { cat: 'mall', q: (lat, lng) => `[out:json][timeout:8];
     (
       nwr["shop"="mall"](around:${SEARCH_RADIUS},${lat},${lng});
       nwr["shop"="department_store"](around:${SEARCH_RADIUS},${lat},${lng});
     );
-    out center 40;` },
-  { cat: 'fastfood', q: (lat, lng) => `[out:json][timeout:10];
+    out center 20;` },
+  { cat: 'fastfood', q: (lat, lng) => `[out:json][timeout:8];
     ( nwr["amenity"="fast_food"](around:${SEARCH_RADIUS},${lat},${lng}); );
-    out center 60;` },
+    out center 30;` },
+];
+
+// Медленный набор — в фоне
+const SLOW_QUERIES = [
   { cat: 'hospital', q: (lat, lng) => `[out:json][timeout:10];
     (
       nwr["amenity"="hospital"](around:${SEARCH_RADIUS},${lat},${lng});
       nwr["amenity"="clinic"](around:${SEARCH_RADIUS},${lat},${lng});
     );
-    out center 40;` },
+    out center 30;` },
   { cat: 'fuel', q: (lat, lng) => `[out:json][timeout:10];
     ( nwr["amenity"="fuel"](around:${SEARCH_RADIUS},${lat},${lng}); );
-    out center 40;` },
+    out center 30;` },
   { cat: 'cafe', q: (lat, lng) => `[out:json][timeout:10];
     (
       nwr["amenity"="cafe"](around:${SEARCH_RADIUS},${lat},${lng});
       nwr["amenity"="restaurant"](around:${SEARCH_RADIUS},${lat},${lng});
     );
-    out center 60;` },
+    out center 40;` },
 ];
 
 const REVIEW_TYPES = {
@@ -626,8 +635,8 @@ const REVIEW_TYPES = {
 const tg = window.Telegram?.WebApp;
 let map;
 let userPlacemark = null;
-let toiletsById = new Map();
-let userToiletsById = new Map();
+let toiletsById = new Map();       // все туалеты (OSM + Firebase)
+let userToiletsById = new Map();   // локальные (когда Firebase отключён)
 let currentPosition = null;
 let selectedToilet = null;
 const activeCategories = new Set(Object.keys(CATEGORIES));
@@ -635,9 +644,8 @@ const currentMarkers = new Map();
 
 let moveDebounceTimer = null;
 let renderDebounceTimer = null;
-let saveCacheTimer = null;
 let loadSequence = 0;
-const queriedCenters = new Set();
+const loadedTiles = new Set();
 const svgCache = new Map();
 let suppressMapCloseUntil = 0;
 
@@ -647,6 +655,61 @@ let tempPickMarker = null;
 
 let locationDetermined = false;
 let isCentering = false;
+
+/* ====================== FIREBASE INIT ====================== */
+async function initFirebase() {
+  if (!FIREBASE_ENABLED) {
+    console.log('🔥 Firebase отключён — работаем локально');
+    return;
+  }
+
+  try {
+    fbApp = firebase.initializeApp(FIREBASE_CONFIG);
+    fbDb = firebase.database();
+    fbAuth = firebase.auth();
+
+    // Анонимная авторизация — даёт uid для голосования
+    const cred = await fbAuth.signInAnonymously();
+    fbUid = cred.user.uid;
+    console.log('🔥 Firebase OK, uid:', fbUid);
+
+    // Слушаем ВСЕ туалеты (их будет не так много — сотни, не миллионы)
+    fbToiletsRef = fbDb.ref('toilets');
+    fbToiletsRef.on('value', (snapshot) => {
+      const data = snapshot.val() || {};
+      let added = 0;
+      for (const [id, t] of Object.entries(data)) {
+        if (!t || !t.lat || !t.lng) continue;
+        // Пропускаем свои (уже есть локально)
+        if (toiletsById.has(id)) continue;
+
+        toiletsById.set(id, {
+          id,
+          name: t.name || 'Туалет',
+          address: t.address || 'Адрес не указан',
+          latitude: t.lat,
+          longitude: t.lng,
+          category: t.category || 'other',
+          source: t.source || 'user',
+          access_code: t.code || null,
+          votes: t.votes || null,
+          fbid: id,
+        });
+        added++;
+      }
+      if (added > 0) {
+        console.log(`🔥 Firebase: подгружено ${added}`);
+        scheduleRender();
+      }
+    }, (err) => {
+      console.warn('Firebase listener error:', err);
+    });
+
+  } catch (e) {
+    console.error('Firebase init failed:', e);
+    // Тихий фолбэк в локальный режим
+  }
+}
 
 /* ====================== TELEGRAM ====================== */
 function initTelegram() {
@@ -681,15 +744,20 @@ function haptic(style = 'light') {
   }
 }
 
-/* ====================== ЛОКАЛЬНЫЕ ХРАНИЛИЩА ====================== */
+/* ====================== ЛОКАЛЬНЫЕ ПОЛЬЗОВАТЕЛЬСКИЕ ТУАЛЕТЫ ====================== */
 function loadUserToilets() {
   try {
     const raw = localStorage.getItem(USER_TOILETS_KEY);
     if (!raw) return;
     const arr = JSON.parse(raw);
-    for (const t of arr) userToiletsById.set(t.id, t);
-    console.log(`Свои туалеты: ${userToiletsById.size}`);
-  } catch (e) { console.warn('loadUserToilets failed:', e); }
+    for (const t of arr) {
+      // если Firebase выключен — отрисовываем их на карте
+      if (!FIREBASE_ENABLED) {
+        userToiletsById.set(t.id, t);
+      }
+    }
+    console.log(`Локальных туалетов: ${userToiletsById.size}`);
+  } catch (_) {}
 }
 
 function saveUserToilets() {
@@ -698,81 +766,60 @@ function saveUserToilets() {
   } catch (_) {}
 }
 
-function makeUserToiletId() {
-  return 'user_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+function makeId() {
+  return 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
 }
 
-function loadToiletCache() {
-  try {
-    const raw = localStorage.getItem(TOILET_CACHE_KEY);
-    if (!raw) return;
-    const arr = JSON.parse(raw);
-    let loaded = 0;
-    for (const t of arr) {
-      if (!toiletsById.has(t.id)) {
-        toiletsById.set(t.id, t);
-        loaded++;
-      }
+/* ====================== ТАЙЛЫ ====================== */
+function getTileKey(lat, lng) {
+  const tLat = Math.floor(lat / TILE_SIZE_DEG);
+  const tLng = Math.floor(lng / TILE_SIZE_DEG);
+  return `${tLat}_${tLng}`;
+}
+
+function getVisibleTiles() {
+  const bounds = map.getBounds();
+  if (!bounds) return [];
+  const south = Math.min(bounds[0][0], bounds[1][0]) - TILE_SIZE_DEG;
+  const north = Math.max(bounds[0][0], bounds[1][0]) + TILE_SIZE_DEG;
+  const west  = Math.min(bounds[0][1], bounds[1][1]) - TILE_SIZE_DEG;
+  const east  = Math.max(bounds[0][1], bounds[1][1]) + TILE_SIZE_DEG;
+
+  const tiles = [];
+  const startLat = Math.floor(south / TILE_SIZE_DEG);
+  const endLat   = Math.floor(north / TILE_SIZE_DEG);
+  const startLng = Math.floor(west / TILE_SIZE_DEG);
+  const endLng   = Math.floor(east / TILE_SIZE_DEG);
+
+  for (let la = startLat; la <= endLat; la++) {
+    for (let ln = startLng; ln <= endLng; ln++) {
+      tiles.push({ key: `${la}_${ln}`, lat: la, lng: ln });
     }
-    console.log(`Кэш туалетов: загружено ${loaded}, всего: ${toiletsById.size}`);
-  } catch (e) {
-    console.warn('Кэш повреждён, очищаем');
-    try { localStorage.removeItem(TOILET_CACHE_KEY); } catch (_) {}
   }
+  return tiles;
 }
 
-function scheduleSaveToiletCache() {
-  clearTimeout(saveCacheTimer);
-  saveCacheTimer = setTimeout(saveToiletCache, 2000);
+function tileCacheKey(tileKey) {
+  return TILE_CACHE_PREFIX + tileKey;
 }
 
-function saveToiletCache() {
+function loadTileCache(tileKey) {
   try {
-    let arr = Array.from(toiletsById.values());
-    if (arr.length > TOILET_CACHE_MAX) {
-      arr = arr.slice(-TOILET_CACHE_MAX);
-      toiletsById.clear();
-      for (const t of arr) toiletsById.set(t.id, t);
-    }
-    localStorage.setItem(TOILET_CACHE_KEY, JSON.stringify(arr));
-    console.log(`Кэш сохранён: ${arr.length}`);
-  } catch (e) {
-    console.warn('Не удалось сохранить кэш, очищаем');
-    try { localStorage.removeItem(TOILET_CACHE_KEY); } catch (_) {}
-  }
-}
-
-function saveLastPosition(pos) {
-  try { localStorage.setItem(LAST_POS_KEY, JSON.stringify(pos)); } catch (_) {}
-}
-
-function loadLastPosition() {
-  try {
-    const raw = localStorage.getItem(LAST_POS_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const raw = localStorage.getItem(tileCacheKey(tileKey));
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL_MS) return null;
+    return data;
   } catch (_) { return null; }
 }
 
-/* ====================== ОТЗЫВЫ ====================== */
-function hashCode(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
+function saveTileCache(tileKey, data) {
+  try {
+    localStorage.setItem(tileCacheKey(tileKey), JSON.stringify({ ts: Date.now(), data }));
+  } catch (_) {}
 }
 
-function getBaseStats(toiletId) {
-  const h = hashCode(toiletId);
-  return {
-    works: { yes: (h % 18) + 2, no: h % 5 },
-    clean: { yes: (h % 14) + 2, no: (h % 8) + 1 },
-    paid:  { yes: h % 9,         no: (h % 13) + 2 },
-    paper: { yes: (h % 11) + 2, no: (h % 7) },
-  };
-}
-
+/* ====================== ОТЗЫВЫ (БЕЗ ФЕЙКА) ====================== */
 function getUserVotes(toiletId) {
   try {
     const raw = localStorage.getItem(MY_VOTES_KEY + toiletId);
@@ -784,21 +831,39 @@ function saveUserVotes(toiletId, votes) {
   try { localStorage.setItem(MY_VOTES_KEY + toiletId, JSON.stringify(votes)); } catch (_) {}
 }
 
-function getCombinedStats(toiletId) {
-  const base = getBaseStats(toiletId);
-  const myVotes = getUserVotes(toiletId);
-  const combined = {};
-  for (const key in REVIEW_TYPES) {
-    const b = base[key] || { yes: 0, no: 0 };
-    combined[key] = { yes: b.yes, no: b.no };
-    if (myVotes[key] === 'yes') combined[key].yes += 1;
-    if (myVotes[key] === 'no')  combined[key].no  += 1;
+/**
+ * Возвращает голоса туалета.
+ * Если у туалета есть поле votes (из Firebase) — используем его.
+ * Иначе — пустая статистика (без фейка).
+ */
+function getStats(toilet) {
+  const empty = {};
+  for (const key in REVIEW_TYPES) empty[key] = { yes: 0, no: 0 };
+
+  if (toilet.votes) {
+    // Копируем из Firebase
+    for (const key in REVIEW_TYPES) {
+      if (toilet.votes[key]) {
+        empty[key] = {
+          yes: toilet.votes[key].yes || 0,
+          no: toilet.votes[key].no || 0,
+        };
+      }
+    }
   }
-  return combined;
+
+  // Локальный голос текущего пользователя тоже учитываем
+  const myVotes = getUserVotes(toilet.id);
+  for (const key in REVIEW_TYPES) {
+    if (myVotes[key] === 'yes') empty[key].yes += 1;
+    if (myVotes[key] === 'no')  empty[key].no  += 1;
+  }
+
+  return empty;
 }
 
-function isLikelyBroken(toiletId) {
-  const stats = getCombinedStats(toiletId);
+function isLikelyBroken(toilet) {
+  const stats = getStats(toilet);
   const w = stats.works;
   const total = w.yes + w.no;
   if (total < 3) return false;
@@ -808,19 +873,20 @@ function isLikelyBroken(toiletId) {
 function renderReviews(toilet) {
   const container = document.getElementById('bs-reviews-list');
   const countEl = document.getElementById('bs-reviews-count');
-  const stats = getCombinedStats(toilet.id);
+  const stats = getStats(toilet);
   const myVotes = getUserVotes(toilet.id);
 
   let totalVotes = 0;
   for (const key in REVIEW_TYPES) totalVotes += stats[key].yes + stats[key].no;
-  countEl.textContent = totalVotes > 0 ? `${totalVotes} голосов` : 'пока нет';
+  countEl.textContent = totalVotes > 0 ? `${totalVotes} голосов` : 'пока никто не голосовал';
 
   container.innerHTML = '';
 
   for (const [key, cfg] of Object.entries(REVIEW_TYPES)) {
     const s = stats[key];
     const total = s.yes + s.no;
-    const yesPct = total > 0 ? (s.yes / total) * 100 : 50;
+    const hasVotes = total > 0;
+    const yesPct = hasVotes ? (s.yes / total) * 100 : 0;
 
     const item = document.createElement('div');
     item.className = 'review-item';
@@ -835,7 +901,9 @@ function renderReviews(toilet) {
         </button>
       </div>
       <div class="review-bar">
-        <div class="review-bar-fill" style="width:${yesPct}%"></div>
+        ${hasVotes
+          ? `<div class="review-bar-fill" style="width:${yesPct}%"></div>`
+          : `<div class="review-bar-empty"></div>`}
       </div>
     `;
 
@@ -843,7 +911,7 @@ function renderReviews(toilet) {
       if (myVotes[key] === btn.dataset.value) btn.classList.add('selected');
       btn.addEventListener('click', (e) => {
         e.stopPropagation(); e.preventDefault();
-        handleVote(toilet.id, key, btn.dataset.value);
+        handleVote(toilet, key, btn.dataset.value);
       });
       btn.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
     });
@@ -852,30 +920,56 @@ function renderReviews(toilet) {
   }
 }
 
-function handleVote(toiletId, reviewKey, value) {
-  const votes = getUserVotes(toiletId);
-  if (votes[reviewKey] === value) {
-    delete votes[reviewKey];
-    haptic('light');
-  } else {
-    votes[reviewKey] = value;
-    haptic('medium');
+async function handleVote(toilet, reviewKey, value) {
+  const votes = getUserVotes(toilet.id);
+  const wasVoted = votes[reviewKey];
+
+  // Если голос уже стоит на этой опции — снять нельзя (для честности)
+  if (wasVoted === value) {
+    showToast('Вы уже голосовали так');
+    return;
   }
-  saveUserVotes(toiletId, votes);
-  renderReviews(selectedToilet);
+
+  // Сохраняем локально
+  votes[reviewKey] = value;
+  saveUserVotes(toilet.id, votes);
+
+  // Отправляем в Firebase (если включён и у туалета есть fbid)
+  if (FIREBASE_ENABLED && fbDb && toilet.fbid) {
+    try {
+      const votesRef = fbDb.ref(`toilets/${toilet.fbid}/votes/${reviewKey}`);
+      await votesRef.transaction((current) => {
+        if (!current) current = { yes: 0, no: 0 };
+        // Откатываем предыдущий голос, если был
+        if (wasVoted === 'yes' && current.yes > 0) current.yes--;
+        if (wasVoted === 'no' && current.no > 0) current.no--;
+        // Ставим новый
+        if (value === 'yes') current.yes++;
+        if (value === 'no') current.no++;
+        return current;
+      });
+
+      // Обновляем локально объект для немедленной отрисовки
+      if (!toilet.votes) toilet.votes = {};
+      if (!toilet.votes[reviewKey]) toilet.votes[reviewKey] = { yes: 0, no: 0 };
+    } catch (e) {
+      console.warn('Firebase vote failed:', e);
+    }
+  }
+
+  haptic('medium');
+  renderReviews(toilet);
   updateNotWorkingNote();
 
   const cfg = REVIEW_TYPES[reviewKey];
-  if (votes[reviewKey]) {
-    const label = value === 'yes' ? cfg.yes : cfg.no;
-    showToast(`Спасибо! Отмечено: ${label}`);
-  }
+  const label = value === 'yes' ? cfg.yes : cfg.no;
+  showToast(`Спасибо! Отмечено: ${label}`);
 }
 
 function updateNotWorkingNote() {
   const note = document.getElementById('bs-not-working-note');
   if (!selectedToilet) { note.classList.add('hidden'); return; }
-  if (isLikelyBroken(selectedToilet.id)) note.classList.remove('hidden');
+  if (isLikelyBroken(selectedToilet)) note.classList.remove('hidden');
   else note.classList.add('hidden');
 }
 
@@ -902,16 +996,16 @@ function renderFilters() {
 /* ====================== ГЕОЛОКАЦИЯ ====================== */
 function getUserPosition() {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject({ code: 0, message: 'Geolocation не поддерживается' });
+    if (!navigator.geolocation) return reject({ code: 0 });
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       (err) => reject(err),
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   });
 }
 
-/* ====================== OVERPASS + CORS ====================== */
+/* ====================== OVERPASS ====================== */
 async function tryOverpassFetch(url, query, timeoutMs) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -931,32 +1025,18 @@ async function tryOverpassFetch(url, query, timeoutMs) {
   }
 }
 
-async function fetchOverpass(query, cacheKey) {
-  const cached = localStorage.getItem(cacheKey);
-  if (cached) {
-    try {
-      const { ts, data } = JSON.parse(cached);
-      if (Date.now() - ts < CACHE_TTL_MS) return data;
-    } catch (_) {}
-  }
-
+async function fetchOverpass(query) {
   let lastError = null;
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
       const data = await tryOverpassFetch(endpoint, query, OVERPASS_TIMEOUT_MS);
-      if (data) {
-        try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data })); } catch (_) {}
-        return data;
-      }
+      if (data) return data;
     } catch (e) { lastError = e; }
 
     try {
       const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(endpoint);
-      const data = await tryOverpassFetch(proxied, query, OVERPASS_TIMEOUT_MS + 3000);
-      if (data) {
-        try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data })); } catch (_) {}
-        return data;
-      }
+      const data = await tryOverpassFetch(proxied, query, OVERPASS_TIMEOUT_MS + 2500);
+      if (data) return data;
     } catch (e) { lastError = e; }
   }
   throw lastError || new Error('Все зеркала недоступны');
@@ -969,23 +1049,22 @@ function osmToToilet(el, category) {
   if (lat == null || lng == null) return null;
 
   const tags = el.tags || {};
-  const osmId = `${category}_${el.type}_${el.id}`;
+  const osmId = `osm_${category}_${el.type}_${el.id}`;
 
-  let displayName = tags['name:ru'] || tags.name;
-  if (!displayName) {
-    if (category === 'free') displayName = 'Общественный туалет';
+  let name = tags['name:ru'] || tags.name;
+  if (!name) {
+    if (category === 'free') name = 'Общественный туалет';
     else if (category === 'transport') {
-      if (tags.railway === 'station') displayName = 'Вокзал';
-      else if (tags.aeroway === 'aerodrome') displayName = 'Аэропорт';
-      else if (tags.amenity === 'bus_station') displayName = 'Автовокзал';
-      else displayName = 'Транспорт';
+      if (tags.railway === 'station') name = 'Вокзал';
+      else if (tags.aeroway === 'aerodrome') name = 'Аэропорт';
+      else name = 'Транспорт';
     }
-    else if (category === 'mall') displayName = tags.shop === 'department_store' ? 'Универмаг' : 'Торговый центр';
-    else if (category === 'fastfood') displayName = 'Фастфуд';
-    else if (category === 'hospital') displayName = tags.amenity === 'clinic' ? 'Поликлиника' : 'Больница';
-    else if (category === 'fuel') displayName = 'АЗС';
-    else if (category === 'cafe') displayName = tags.amenity === 'restaurant' ? 'Ресторан' : 'Кафе';
-    else displayName = 'Место';
+    else if (category === 'mall') name = 'Торговый центр';
+    else if (category === 'fastfood') name = 'Фастфуд';
+    else if (category === 'hospital') name = tags.amenity === 'clinic' ? 'Поликлиника' : 'Больница';
+    else if (category === 'fuel') name = 'АЗС';
+    else if (category === 'cafe') name = tags.amenity === 'restaurant' ? 'Ресторан' : 'Кафе';
+    else name = 'Место';
   }
 
   const address = [tags['addr:street'], tags['addr:housenumber']]
@@ -993,10 +1072,8 @@ function osmToToilet(el, category) {
 
   return {
     id: osmId,
-    name: displayName,
-    address,
-    latitude: lat,
-    longitude: lng,
+    name, address,
+    latitude: lat, longitude: lng,
     category,
     source: 'OSM',
     access_code: localStorage.getItem(STORAGE_PREFIX + osmId) || null,
@@ -1039,30 +1116,16 @@ function onMapMoved() {
 
   if (!locationDetermined) {
     locationDetermined = true;
-    console.log('📍 Пользователь сдвинул карту — разрешаем загрузку');
-  }
-
-  // Запоминаем, где сейчас пользователь (для следующего старта)
-  const c = map.getCenter();
-  if (map.getZoom() >= 12) {
-    saveLastPosition({ lat: c[0], lng: c[1] });
   }
 
   clearTimeout(moveDebounceTimer);
   moveDebounceTimer = setTimeout(loadForCurrentView, MOVE_DEBOUNCE_MS);
 
   clearTimeout(renderDebounceTimer);
-  renderDebounceTimer = setTimeout(scheduleRender, 250);
+  renderDebounceTimer = setTimeout(scheduleRender, 200);
 }
 
-function getCenter() {
-  const c = map.getCenter();
-  return { lat: c[0], lng: c[1] };
-}
-
-function roundCoord(n, p = CACHE_PRECISION) { return n.toFixed(p); }
-
-/* ====================== ЗАГРУЗКА OSM ====================== */
+/* ====================== ЗАГРУЗКА ПО ТАЙЛАМ ====================== */
 async function loadForCurrentView() {
   const zoom = map.getZoom();
   const hint = document.getElementById('zoom-hint');
@@ -1074,62 +1137,128 @@ async function loadForCurrentView() {
   }
   hint.classList.remove('show');
 
-  const { lat, lng } = getCenter();
-  const centerKey = `${roundCoord(lat)}_${roundCoord(lng)}`;
+  // Получаем ВСЕ тайлы, которые сейчас видны
+  const tiles = getVisibleTiles();
+  // Исключаем уже загруженные
+  const tilesToLoad = tiles.filter(t => !loadedTiles.has(t.key));
 
-  if (queriedCenters.has(centerKey)) return;
-  queriedCenters.add(centerKey);
+  if (tilesToLoad.length === 0) {
+    console.log('✅ Все тайлы в зоне видны уже загружены');
+    return;
+  }
+
+  console.log(`📥 Загружаем ${tilesToLoad.length} тайлов`);
 
   const mySeq = ++loadSequence;
-  showLoadingBar('Ищем туалеты…');
+  showLoadingBar(`Загрузка ${tilesToLoad.length} зон…`);
 
-  let totalNew = 0;
-  let completed = 0;
-  const totalQueries = QUERIES.length;
+  // Помечаем все тайлы как "загружаются" сразу, чтобы не запустить повторно
+  for (const t of tilesToLoad) loadedTiles.add(t.key);
 
-  const tasks = QUERIES.map(({ cat, q }) => {
-    const cacheKey = `q_${cat}_${centerKey}`;
-    return fetchOverpass(q(lat, lng), cacheKey)
-      .then((data) => {
+  // Запускаем загрузку всех тайлов ПАРАЛЛЕЛЬНО
+  // Каждый тайл = центр квадрата
+  const promises = tilesToLoad.map(({ key, lat, lng }) => {
+    const centerLat = lat * TILE_SIZE_DEG + TILE_SIZE_DEG / 2;
+    const centerLng = lng * TILE_SIZE_DEG + TILE_SIZE_DEG / 2;
+
+    // Сначала пробуем кэш тайла
+    const cached = loadTileCache(key);
+    if (cached) {
+      let added = 0;
+      for (const t of cached) {
+        if (!toiletsById.has(t.id)) {
+          toiletsById.set(t.id, t);
+          added++;
+        }
+      }
+      if (added > 0) scheduleRender();
+      return Promise.resolve({ key, added, fromCache: true });
+    }
+
+    // Иначе — грузим
+    return loadTile(centerLat, centerLng, key, mySeq);
+  });
+
+  const results = await Promise.allSettled(promises);
+  if (mySeq !== loadSequence) return;
+
+  let total = 0;
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value) total += r.value.added || 0;
+  }
+
+  console.log(`✅ Итог: +${total}, всего: ${toiletsById.size}`);
+  scheduleRender();
+
+  if (total > 0) {
+    showLoadingBar(`Найдено: +${total}`, 'count');
+  } else {
+    showLoadingBar('В этих местах пока ничего нет', 'empty');
+  }
+  setTimeout(hideLoadingBar, 1500);
+}
+
+async function loadTile(lat, lng, tileKey, mySeq) {
+  let totalAdded = 0;
+
+  // FAST-запросы параллельно
+  const fastTasks = FAST_QUERIES.map(({ cat, q }) =>
+    fetchOverpass(q(lat, lng))
+      .then(data => ({ cat, elements: data.elements || [] }))
+      .catch(() => ({ cat, elements: [] }))
+  );
+
+  const fastResults = await Promise.allSettled(fastTasks);
+  if (mySeq !== loadSequence) return { added: 0 };
+
+  const tileToilets = [];
+
+  for (const r of fastResults) {
+    if (r.status !== 'fulfilled') continue;
+    const { cat, elements } = r.value;
+    for (const el of elements) {
+      const t = osmToToilet(el, cat);
+      if (t && !toiletsById.has(t.id)) {
+        toiletsById.set(t.id, t);
+        tileToilets.push(t);
+        totalAdded++;
+      }
+    }
+  }
+
+  if (totalAdded > 0) {
+    scheduleRender();
+    saveTileCache(tileKey, tileToilets);
+  }
+
+  // SLOW-запросы — в фоне, не блокируем
+  SLOW_QUERIES.forEach(({ cat, q }) => {
+    fetchOverpass(q(lat, lng))
+      .then(data => {
         if (mySeq !== loadSequence) return;
         const elements = data.elements || [];
-        let added = 0;
+        const moreToilets = [];
+        let moreAdded = 0;
         for (const el of elements) {
           const t = osmToToilet(el, cat);
           if (t && !toiletsById.has(t.id)) {
             toiletsById.set(t.id, t);
-            added++;
+            moreToilets.push(t);
+            moreAdded++;
           }
         }
-        totalNew += added;
-        completed++;
-        if (added > 0) {
+        if (moreAdded > 0) {
+          console.log(`+${moreAdded} из ${cat} (tile ${tileKey})`);
           scheduleRender();
-          scheduleSaveToiletCache();
+          // Обновляем кэш тайла
+          const cached = loadTileCache(tileKey) || [];
+          saveTileCache(tileKey, [...cached, ...moreToilets]);
         }
-        updateLoadProgress(completed, totalQueries, totalNew);
       })
-      .catch(() => {
-        completed++;
-        updateLoadProgress(completed, totalQueries, totalNew);
-      });
+      .catch(() => {});
   });
 
-  Promise.allSettled(tasks).then(() => {
-    if (mySeq !== loadSequence) return;
-    console.log(`✅ Итог: +${totalNew}, всего в базе: ${toiletsById.size}`);
-    if (totalNew > 0) {
-      showLoadingBar(`Найдено: ${totalNew}`, 'count');
-      scheduleSaveToiletCache();
-    } else {
-      showLoadingBar('Рядом пока ничего нет', 'empty');
-    }
-    setTimeout(hideLoadingBar, 1500);
-  });
-}
-
-function updateLoadProgress(done, total, found) {
-  showLoadingBar(`Загрузка ${done}/${total} · ${found} найдено`);
+  return { added: totalAdded };
 }
 
 /* ====================== ИКОНКИ ====================== */
@@ -1183,13 +1312,11 @@ function renderMarkers() {
   if (userPlacemark) { map.geoObjects.remove(userPlacemark); userPlacemark = null; }
   if (currentPosition) {
     userPlacemark = new ymaps.Placemark(
-      [currentPosition.lat, currentPosition.lng],
-      {},
+      [currentPosition.lat, currentPosition.lng], {},
       {
         iconLayout: 'default#image',
         iconImageHref: USER_SVG,
-        iconImageSize: [30, 30],
-        iconImageOffset: [-15, -15],
+        iconImageSize: [30, 30], iconImageOffset: [-15, -15],
         interactive: false,
       }
     );
@@ -1203,8 +1330,8 @@ function renderMarkers() {
   const west  = Math.min(bounds[0][1], bounds[1][1]);
   const east  = Math.max(bounds[0][1], bounds[1][1]);
 
-  const dLat = (north - south) * 0.1;
-  const dLng = (east - west) * 0.1;
+  const dLat = (north - south) * 0.05;
+  const dLng = (east - west) * 0.05;
   const vb = { south: south - dLat, north: north + dLat, west: west - dLng, east: east + dLng };
 
   const wanted = new Map();
@@ -1212,8 +1339,8 @@ function renderMarkers() {
   const sorted = allToilets.sort((a, b) => {
     const aU = a.source === 'user' ? -1 : 0;
     const bU = b.source === 'user' ? -1 : 0;
-    const aA = CATEGORIES[a.category].assumed ? 1 : 0;
-    const bA = CATEGORIES[b.category].assumed ? 1 : 0;
+    const aA = CATEGORIES[a.category]?.assumed ? 1 : 0;
+    const bA = CATEGORIES[b.category]?.assumed ? 1 : 0;
     return (aU - bU) || (aA - bA);
   });
 
@@ -1221,7 +1348,6 @@ function renderMarkers() {
     if (!activeCategories.has(t.category)) continue;
     if (t.latitude < vb.south || t.latitude > vb.north) continue;
     if (t.longitude < vb.west || t.longitude > vb.east) continue;
-    if (wanted.size >= MAX_MARKERS_ON_MAP) break;
     wanted.set(t.id, t);
   }
 
@@ -1235,7 +1361,7 @@ function renderMarkers() {
   for (const [id, t] of wanted) {
     if (currentMarkers.has(id)) continue;
 
-    const cat = CATEGORIES[t.category];
+    const cat = CATEGORIES[t.category] || CATEGORIES.other;
     const letter = t.category === 'free' ? 'WC' : cat.emoji;
     const isUser = t.source === 'user';
 
@@ -1260,8 +1386,6 @@ function renderMarkers() {
     map.geoObjects.add(placemark);
     currentMarkers.set(id, placemark);
   }
-
-  console.log(`✅ На карте: ${currentMarkers.size} маркеров (всего в базе: ${toiletsById.size})`);
 }
 
 /* ====================== SOS ====================== */
@@ -1281,10 +1405,10 @@ function findNearestWorkingToilet() {
 
   if (!all.length) { showToast('Поблизости ничего не найдено'); return; }
 
-  const notBroken = all.filter((t) => !isLikelyBroken(t.id));
+  const notBroken = all.filter((t) => !isLikelyBroken(t));
   const pool = notBroken.length ? notBroken : all;
   const userAdded = pool.filter((t) => t.source === 'user');
-  const confirmed = pool.filter((t) => !CATEGORIES[t.category].assumed && t.source !== 'user');
+  const confirmed = pool.filter((t) => !CATEGORIES[t.category]?.assumed && t.source !== 'user');
   const candidates = userAdded.length ? userAdded : (confirmed.length ? confirmed : pool);
 
   let nearest = candidates[0];
@@ -1307,7 +1431,7 @@ function findNearestWorkingToilet() {
 /* ====================== BOTTOM SHEET ====================== */
 function openBottomSheet(toilet) {
   selectedToilet = toilet;
-  const cat = CATEGORIES[toilet.category];
+  const cat = CATEGORIES[toilet.category] || CATEGORIES.other;
 
   document.getElementById('bs-name').textContent = toilet.name;
   document.getElementById('bs-address').textContent = toilet.address;
@@ -1318,7 +1442,7 @@ function openBottomSheet(toilet) {
 
   const srcEl = document.getElementById('bs-source');
   if (toilet.source === 'user') {
-    srcEl.textContent = 'Вы добавили';
+    srcEl.textContent = 'Добавлено пользователем';
     srcEl.classList.add('user-source');
   } else {
     srcEl.textContent = toilet.source || 'OSM';
@@ -1328,10 +1452,6 @@ function openBottomSheet(toilet) {
   const note = document.getElementById('bs-assumed-note');
   if (cat.assumed && toilet.source !== 'user') note.classList.remove('hidden');
   else note.classList.add('hidden');
-
-  const delBtn = document.getElementById('bs-delete-btn');
-  if (toilet.source === 'user') delBtn.classList.remove('hidden');
-  else delBtn.classList.add('hidden');
 
   updateNotWorkingNote();
   renderReviews(toilet);
@@ -1376,12 +1496,10 @@ function closeBottomSheet() {
 /* ====================== ДОБАВЛЕНИЕ ТУАЛЕТА ====================== */
 function openAddDialog() {
   addingToilet = { name: '', category: 'free', address: '', code: '', lat: null, lng: null };
-
   document.getElementById('add-name').value = '';
   document.getElementById('add-address').value = '';
   document.getElementById('add-code').value = '';
   document.getElementById('add-coords').textContent = '—';
-
   renderAddCats();
   document.getElementById('add-dialog').classList.remove('hidden');
   haptic();
@@ -1425,8 +1543,7 @@ function startPickMode() {
     {
       iconLayout: 'default#image',
       iconImageHref: PICK_SVG,
-      iconImageSize: [40, 40],
-      iconImageOffset: [-20, -20],
+      iconImageSize: [40, 40], iconImageOffset: [-20, -20],
       interactive: false,
     }
   );
@@ -1452,7 +1569,7 @@ function onPickPoint(lat, lng) {
   haptic('medium');
 }
 
-function saveNewToilet() {
+async function saveNewToilet() {
   if (!addingToilet) return;
 
   const name = document.getElementById('add-name').value.trim();
@@ -1465,44 +1582,63 @@ function saveNewToilet() {
     return;
   }
 
-  const id = makeUserToiletId();
+  const id = makeId();
   const toilet = {
-    id, name,
+    id,
+    name,
     address: address || 'Адрес не указан',
     latitude: addingToilet.lat,
     longitude: addingToilet.lng,
     category: addingToilet.category,
     source: 'user',
     access_code: code || null,
+    votes: null,
   };
 
-  userToiletsById.set(id, toilet);
-  saveUserToilets();
+  // Отправляем в Firebase — тогда его увидят ВСЕ
+  let savedToFirebase = false;
+  if (FIREBASE_ENABLED && fbDb && fbUid) {
+    try {
+      const fbId = 'u_' + id;
+      await fbDb.ref('toilets/' + fbId).set({
+        name: toilet.name,
+        address: toilet.address,
+        lat: toilet.latitude,
+        lng: toilet.longitude,
+        category: toilet.category,
+        source: 'user',
+        code: code || null,
+        createdAt: Date.now(),
+        createdBy: fbUid,
+      });
+      toilet.id = fbId;
+      toilet.fbid = fbId;
+      savedToFirebase = true;
+      console.log('🔥 Туалет сохранён в Firebase');
+    } catch (e) {
+      console.warn('Firebase write failed:', e);
+    }
+  }
 
-  if (code) localStorage.setItem(STORAGE_PREFIX + id, code);
+  // Всегда сохраняем локально
+  if (!savedToFirebase) {
+    userToiletsById.set(id, toilet);
+    saveUserToilets();
+  }
+  toiletsById.set(toilet.id, toilet);
+
+  if (code) localStorage.setItem(STORAGE_PREFIX + toilet.id, code);
 
   closeAddDialog();
   scheduleRender();
-  showToast('Туалет добавлен!');
+
+  showToast(savedToFirebase
+    ? 'Туалет добавлен! Его увидят все пользователи'
+    : 'Туалет добавлен локально'
+  );
 
   map.setCenter([toilet.latitude, toilet.longitude], 17, { duration: 500 });
   setTimeout(() => openBottomSheet(toilet), 700);
-}
-
-function deleteSelectedToilet() {
-  if (!selectedToilet || selectedToilet.source !== 'user') return;
-  const id = selectedToilet.id;
-
-  if (!confirm('Удалить этот туалет?')) return;
-
-  userToiletsById.delete(id);
-  saveUserToilets();
-  try { localStorage.removeItem(STORAGE_PREFIX + id); } catch (_) {}
-
-  closeBottomSheet();
-  scheduleRender();
-  showToast('Туалет удалён');
-  haptic('medium');
 }
 
 /* ====================== ОБРАБОТЧИКИ ====================== */
@@ -1533,7 +1669,7 @@ document.getElementById('edit-cancel').addEventListener('click', () => {
   document.getElementById('edit-dialog').classList.add('hidden');
 });
 
-document.getElementById('edit-save').addEventListener('click', () => {
+document.getElementById('edit-save').addEventListener('click', async () => {
   const input = document.getElementById('edit-input');
   const newCode = input.value.trim();
   if (!newCode || !selectedToilet) return;
@@ -1541,13 +1677,15 @@ document.getElementById('edit-save').addEventListener('click', () => {
   localStorage.setItem(STORAGE_PREFIX + selectedToilet.id, newCode);
   selectedToilet.access_code = newCode;
 
-  if (selectedToilet.source === 'user') {
+  if (FIREBASE_ENABLED && fbDb && selectedToilet.fbid) {
+    try {
+      await fbDb.ref('toilets/' + selectedToilet.fbid + '/code').set(newCode);
+    } catch (e) {
+      console.warn('Firebase code update failed:', e);
+    }
+  } else {
     const t = userToiletsById.get(selectedToilet.id);
     if (t) { t.access_code = newCode; saveUserToilets(); }
-  } else {
-    const t = toiletsById.get(selectedToilet.id);
-    if (t) t.access_code = newCode;
-    scheduleSaveToiletCache();
   }
 
   document.getElementById('edit-dialog').classList.add('hidden');
@@ -1563,11 +1701,6 @@ document.getElementById('bs-route-btn').addEventListener('click', (e) => {
   openRouteTo(selectedToilet.latitude, selectedToilet.longitude);
 });
 
-document.getElementById('bs-delete-btn').addEventListener('click', (e) => {
-  e.stopPropagation();
-  deleteSelectedToilet();
-});
-
 document.getElementById('sos-btn').addEventListener('click', findNearestWorkingToilet);
 document.getElementById('add-btn').addEventListener('click', openAddDialog);
 
@@ -1579,20 +1712,20 @@ document.getElementById('locate-btn').addEventListener('click', async () => {
   try {
     const pos = await getUserPosition();
     currentPosition = pos;
-    saveLastPosition(pos);
 
     isCentering = true;
     map.setCenter([pos.lat, pos.lng], 16, {
-      duration: 600,
-      timingFunction: 'ease-in-out',
+      duration: 600, timingFunction: 'ease-in-out',
     });
     setTimeout(() => { isCentering = false; }, 700);
 
     scheduleRender();
 
-    // Если это был первый раз, когда мы узнали позицию — грузим данные
     if (!locationDetermined) {
       locationDetermined = true;
+      loadForCurrentView();
+    } else {
+      // Просто триггерим проверку новых тайлов
       loadForCurrentView();
     }
 
@@ -1600,7 +1733,7 @@ document.getElementById('locate-btn').addEventListener('click', async () => {
     haptic('medium');
   } catch (e) {
     let msg = 'Не удалось определить геопозицию';
-    if (e && e.code === 1) msg = 'Разрешите доступ к геопозиции в настройках';
+    if (e && e.code === 1) msg = 'Разрешите доступ к геопозиции';
     showToast(msg);
   } finally {
     btn.classList.remove('loading');
@@ -1672,34 +1805,17 @@ function hideLoader() {
   l.classList.add('hidden');
   setTimeout(() => l.remove(), 400);
 }
-function showLoaderRetry() {
-  const btn = document.getElementById('loader-retry');
-  if (btn) btn.classList.add('show');
-}
-function hideLoaderSpinner() {
-  const sp = document.getElementById('loader-spinner');
-  if (sp) sp.style.display = 'none';
-}
 
 async function init() {
   initTelegram();
   renderFilters();
   loadUserToilets();
-  loadToiletCache();
 
   updateLoader('Загружаем карту…');
   await initMap();
 
-  // Сразу показываем карту на сохранённой позиции (или на нейтральной)
-  const lastPos = loadLastPosition();
-  if (lastPos) {
-    isCentering = true;
-    map.setCenter([lastPos.lat, lastPos.lng], 13, { duration: 0 });
-    setTimeout(() => { isCentering = false; }, 100);
-  }
-
-  // Отрисовываем кэш
-  scheduleRender();
+  // Firebase — не блокирует, грузится в фоне
+  initFirebase().catch(e => console.warn('Firebase init error:', e));
 
   updateLoader('Определяем вашу геопозицию…');
 
@@ -1707,22 +1823,17 @@ async function init() {
   try {
     pos = await getUserPosition();
   } catch (e) {
-    let msg = 'Геопозиция недоступна';
-    if (e && e.code === 1) msg = 'Вы не разрешили доступ к геопозиции';
-    else if (e && e.code === 2) msg = 'Геопозиция не определяется';
-    else if (e && e.code === 3) msg = 'Превышено время ожидания';
-    console.warn(msg);
+    console.warn('Геолокация недоступна');
   }
 
   hideLoader();
 
   if (pos) {
-    // Есть геолокация — центрируем и грузим данные для этого места
     currentPosition = pos;
-    saveLastPosition(pos);
 
     isCentering = true;
     map.setCenter([pos.lat, pos.lng], 15, { duration: 0 });
+
     setTimeout(() => {
       isCentering = false;
       locationDetermined = true;
@@ -1730,14 +1841,9 @@ async function init() {
     }, 100);
 
     scheduleRender();
-    console.log('📍 Стартовая позиция:', pos);
   } else {
-    // Нет геолокации — НИЧЕГО не грузим автоматически.
-    // Пользователь должен либо разрешить геолокацию через кнопку 📍,
-    // либо сам сдвинуть карту.
     locationDetermined = false;
     showToast('Разрешите геолокацию или сдвиньте карту');
-    console.log('📍 Геолокация не определена, автозагрузка отключена');
   }
 }
 
