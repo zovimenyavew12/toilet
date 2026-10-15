@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Где Туалет?</title>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --tg-bg: #ffffff;
+  --tg-text: #000000;
+  --tg-hint: #999999;
+  --tg-button: #2481cc;
+  --tg-button-text: #ffffff;
+  --tg-secondary-bg: #f0f0f0;
+  --positive: #43a047;
+  --negative: #e53935;
+}
+
+html, body {
+  height: 100%; overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--tg-bg); color: var(--tg-text);
+}
+
+#map { position: absolute; inset: 0; z-index: 1; }
+
+#filters {
+  position: fixed; top: calc(10px + env(safe-area-inset-top));
+  left: 0; right: 0;
+  display: flex; gap: 6px; padding: 0 12px;
+  overflow-x: auto; overflow-y: hidden;
+  z-index: 500;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+#filters::-webkit-scrollbar { display: none; }
+.chip {
+  flex-shrink: 0; padding: 7px 12px;
+  border-radius: 18px; border: none;
+  background: rgba(255,255,255,0.95); color: #333;
+  font-size: 13px; font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  cursor: pointer; font-family: inherit;
+  opacity: 0.45; white-space: nowrap;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.chip.active { opacity: 1; }
+.chip:active { transform: scale(0.95); }
+.chip .dot {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; margin-right: 5px; vertical-align: middle;
+}
+
+#loading-bar {
+  position: fixed; top: calc(54px + env(safe-area-inset-top));
+  left: 50%; transform: translateX(-50%) translateY(-10px);
+  background: rgba(0,0,0,0.82); color: #fff;
+  padding: 8px 16px; border-radius: 18px;
+  font-size: 12px; font-weight: 600;
+  z-index: 400;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s;
+  display: flex; align-items: center; gap: 8px;
+  max-width: 90%;
+}
+#loading-bar.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#loading-bar .mini-spinner {
+  width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+#loading-bar.count { background: rgba(30,140,70,0.9); }
+#loading-bar.empty { background: rgba(180,120,0,0.9); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#zoom-hint {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.78); color: #fff;
+  padding: 16px 22px; border-radius: 14px;
+  font-size: 14px; font-weight: 600;
+  z-index: 400; text-align: center;
+  max-width: 80%; line-height: 1.5;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s;
+}
+#zoom-hint.show { opacity: 1; }
+
+#loader {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; gap: 14px;
+  align-items: center; justify-content: center;
+  background: var(--tg-bg); color: var(--tg-text);
+  z-index: 1000; font-size: 15px;
+  transition: opacity 0.3s;
+  padding: 20px; text-align: center;
+}
+#loader.hidden { opacity: 0; pointer-events: none; }
+.spinner {
+  width: 34px; height: 34px;
+  border: 3px solid var(--tg-secondary-bg);
+  border-top-color: var(--tg-button);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+#loader-text { color: var(--tg-hint); font-size: 14px; }
+
+#sos-btn {
+  position: fixed; right: 20px;
+  bottom: calc(30px + env(safe-area-inset-bottom));
+  width: 64px; height: 64px; border-radius: 50%;
+  background: #e53935; color: #fff;
+  font-weight: 800; font-size: 14px; letter-spacing: 0.5px;
+  border: 3px solid rgba(255,255,255,0.9);
+  box-shadow: 0 6px 16px rgba(229,57,53,0.45);
+  z-index: 500; cursor: pointer;
+  transition: transform 0.15s; font-family: inherit;
+}
+#sos-btn:active { transform: scale(0.92); }
+
+#bottom-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: var(--tg-bg); color: var(--tg-text);
+  border-radius: 20px 20px 0 0;
+  padding: 12px 20px calc(24px + env(safe-area-inset-bottom));
+  z-index: 600; transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 -6px 24px rgba(0,0,0,0.18);
+  max-height: 85vh; overflow-y: auto; touch-action: pan-y;
+}
+#bottom-sheet.hidden { display: none; }
+#bottom-sheet.open { transform: translateY(0); }
+.drag-handle {
+  width: 40px; height: 4px;
+  background: var(--tg-hint); opacity: 0.4;
+  border-radius: 2px; margin: 0 auto 14px;
+}
+#bs-category {
+  display: inline-block; padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 700; color: #fff;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+#bs-source {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 10px; font-weight: 600;
+  background: var(--tg-secondary-bg); color: var(--tg-hint);
+  margin-left: 6px; text-transform: uppercase;
+}
+#bs-name { font-size: 20px; font-weight: 700; margin: 10px 0 6px; }
+.bs-address { color: var(--tg-hint); font-size: 14px; margin-bottom: 16px; line-height: 1.4; }
+
+#bs-assumed-note {
+  background: #fff8e1; color: #8a6d00;
+  border-radius: 10px; padding: 10px 12px;
+  font-size: 13px; line-height: 1.4; margin-bottom: 14px;
+}
+#bs-assumed-note.hidden { display: none; }
+
+/* Предупреждение "не работает" */
+#bs-not-working-note {
+  background: #ffebee; color: #b71c1c;
+  border-radius: 10px; padding: 10px 12px;
+  font-size: 13px; line-height: 1.4; margin-bottom: 14px;
+  font-weight: 600;
+}
+#bs-not-working-note.hidden { display: none; }
+
+/* Кнопка маршрута */
+#bs-route-btn {
+  width: 100%;
+  padding: 13px;
+  border-radius: 12px;
+  border: none;
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+  font-size: 15px; font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  margin-bottom: 14px;
+  transition: opacity 0.15s, transform 0.1s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+#bs-route-btn:active { opacity: 0.8; transform: scale(0.98); }
+
+/* Отзывы */
+#bs-reviews {
+  padding: 14px 0;
+  border-top: 1px solid var(--tg-secondary-bg);
+  border-bottom: 1px solid var(--tg-secondary-bg);
+  margin-bottom: 14px;
+}
+.reviews-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 12px;
+}
+.reviews-title { font-weight: 700; font-size: 15px; }
+.reviews-count { font-size: 12px; color: var(--tg-hint); font-weight: 500; }
+
+.review-item { margin-bottom: 14px; }
+.review-item:last-child { margin-bottom: 0; }
+
+.review-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 6px;
+}
+.review-label {
+  flex: 1;
+  font-size: 13px; font-weight: 600;
+  color: var(--tg-text);
+}
+.review-btn {
+  padding: 5px 10px;
+  border-radius: 14px;
+  border: 1.5px solid var(--tg-secondary-bg);
+  background: transparent;
+  color: var(--tg-text);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.review-btn:active { transform: scale(0.94); }
+.review-btn.selected {
+  border-color: var(--tg-button);
+  background: color-mix(in srgb, var(--tg-button) 18%, transparent);
+  color: var(--tg-button);
+}
+.review-btn .cnt {
+  font-weight: 700; opacity: 0.65;
+  font-size: 11px;
+}
+
+.review-bar {
+  height: 4px;
+  background: var(--tg-secondary-bg);
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+}
+.review-bar-fill {
+  height: 100%;
+  background: var(--positive);
+  transition: width 0.35s ease;
+}
+.review-bar-rest {
+  flex: 1;
+  background: var(--negative);
+  opacity: 0.45;
+}
+
+/* Код */
+.code-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.code-label { font-weight: 600; font-size: 15px; }
+#bs-toggle-code {
+  background: none; border: none; color: var(--tg-button);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  padding: 6px 8px; font-family: inherit;
+}
+#bs-code-display {
+  background: var(--tg-secondary-bg); border-radius: 12px;
+  padding: 18px; text-align: center;
+  font-size: 30px; font-weight: 800; letter-spacing: 8px;
+  transition: background 0.35s, color 0.35s;
+  margin-bottom: 14px; user-select: none;
+  min-height: 66px;
+}
+#bs-code-display[data-visible="true"] {
+  background: color-mix(in srgb, var(--tg-button) 15%, transparent);
+  color: var(--tg-button);
+}
+#bs-code-display.empty {
+  font-size: 14px; letter-spacing: 0; font-weight: 500;
+  color: var(--tg-hint);
+}
+
+.btn {
+  width: 100%; padding: 13px; border-radius: 12px; border: none;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s; font-family: inherit;
+}
+.btn:active { opacity: 0.75; transform: scale(0.98); }
+.btn-primary { background: var(--tg-button); color: var(--tg-button-text); }
+.btn-outline {
+  background: transparent; color: var(--tg-button);
+  border: 1.5px solid var(--tg-button);
+}
+
+#edit-dialog {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 20px;
+  animation: fadeIn 0.2s;
+}
+#edit-dialog.hidden { display: none; }
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+.dialog-box {
+  background: var(--tg-bg); color: var(--tg-text);
+  border-radius: 16px; padding: 22px;
+  width: 100%; max-width: 340px;
+  animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0 }
+  to { transform: translateY(0); opacity: 1 }
+}
+.dialog-box h3 { margin-bottom: 6px; font-size: 18px; }
+.dialog-box p { color: var(--tg-hint); font-size: 13px; margin-bottom: 14px; }
+#edit-input {
+  width: 100%; padding: 13px; border-radius: 10px;
+  border: 1.5px solid var(--tg-hint);
+  background: var(--tg-bg); color: var(--tg-text);
+  font-size: 16px; margin-bottom: 16px; font-family: inherit;
+}
+#edit-input:focus { outline: none; border-color: var(--tg-button); }
+.dialog-actions { display: flex; gap: 8px; }
+.dialog-actions .btn { flex: 1; }
+
+#toast {
+  position: fixed; bottom: 130px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(0,0,0,0.85); color: #fff;
+  padding: 10px 20px; border-radius: 20px;
+  font-size: 14px; opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 2000; pointer-events: none;
+  max-width: 80%; text-align: center;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="filters"></div>
+
+<div id="loading-bar"><div class="mini-spinner"></div><span id="loading-text">Ищем туалеты…</span></div>
+<div id="zoom-hint">Приблизьте карту,<br>чтобы увидеть туалеты</div>
+
+<button id="sos-btn" title="Ближайший рабочий туалет">SOS</button>
+
+<div id="bottom-sheet" class="hidden">
+  <div class="drag-handle"></div>
+  <div>
+    <span id="bs-category"></span>
+    <span id="bs-source"></span>
+  </div>
+  <h2 id="bs-name"></h2>
+  <p class="bs-address" id="bs-address"></p>
+
+  <div id="bs-assumed-note" class="hidden">
+    ⚠️ Туалет здесь не подтверждён. Скорее всего, доступен для посетителей, но может быть платным или «только для клиентов».
+  </div>
+
+  <div id="bs-not-working-note" class="hidden">
+    ⛔ По отзывам пользователей туалет не работает
+  </div>
+
+  <button id="bs-route-btn">🧭 Построить маршрут</button>
+
+  <div id="bs-reviews">
+    <div class="reviews-header">
+      <span class="reviews-title">Отзывы</span>
+      <span class="reviews-count" id="bs-reviews-count"></span>
+    </div>
+    <div id="bs-reviews-list"></div>
+  </div>
+
+  <div id="bs-code-block">
+    <div class="code-row">
+      <span class="code-label">Код доступа:</span>
+      <button id="bs-toggle-code">Показать код</button>
+    </div>
+    <div id="bs-code-display"></div>
+    <button id="bs-edit-code" class="btn btn-outline">✏️ Изменить код</button>
+  </div>
+</div>
+
+<div id="edit-dialog" class="hidden">
+  <div class="dialog-box">
+    <h3>Код доступа</h3>
+    <p>Помогите другим — оставьте код от двери или замка</p>
+    <input id="edit-input" type="text" inputmode="numeric" placeholder="Например: 1234">
+    <div class="dialog-actions">
+      <button id="edit-cancel" class="btn btn-outline">Отмена</button>
+      <button id="edit-save" class="btn btn-primary">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="loader">
+  <div class="spinner"></div>
+  <div id="loader-text">Загрузка…</div>
+</div>
+
+<script src="https://api-maps.yandex.ru/2.1/?apikey=3de2fd9f-e71a-4177-baf7-80f343a3afaf&lang=ru_RU"></script>
+
+<script>
+/* ====================== КОНФИГ ====================== */
+const MIN_ZOOM_FOR_LOAD = 13;
+const MOVE_DEBOUNCE_MS = 700;
+const CACHE_TTL_MS = 60 * 60 * 1000;
+const STORAGE_PREFIX = 'tg_toilet_code_';
+const REVIEW_KEY = 'tg_toilet_reviews_';
+const MY_VOTES_KEY = 'tg_toilet_myvotes_';
+const BBOX_PADDING = 0.25;
+
+const ZOOM_RULES = {
+  13: { confirmed: true, assumed: false },
+  14: { confirmed: true, assumed: false },
+  15: { confirmed: true, assumed: true },
+  16: { confirmed: true, assumed: true },
+  17: { confirmed: true, assumed: true },
+  18: { confirmed: true, assumed: true },
+};
+
+const OVERPASS_ENDPOINTS = [
+  'https://overpass.private.coffee/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
+];
+
+const CATEGORIES = {
+  free:     { label: 'Общественные',   emoji: '🚻', color: '#43a047', defaultName: 'Общественный туалет', assumed: false },
+  mall:     { label: 'ТЦ',             emoji: '🛍', color: '#fbc02d', defaultName: 'Торговый центр',      assumed: false },
+  cafe:     { label: 'Кафе',           emoji: '☕', color: '#e53935', defaultName: 'Кафе / ресторан',     assumed: false },
+  hospital: { label: 'Больницы',       emoji: '🏥', color: '#1e88e5', defaultName: 'Больница',            assumed: false },
+  fastfood: { label: 'Фастфуд',        emoji: '🍔', color: '#fb8c00', defaultName: 'Фастфуд',             assumed: false },
+  other:    { label: 'Другое',         emoji: '📌', color: '#757575', defaultName: 'Туалет',              assumed: false },
+  assumed:  { label: 'Вероятно есть',  emoji: '❓', color: '#90a4ae', defaultName: 'Вероятно есть туалет', assumed: true },
+};
+
+const REVIEW_TYPES = {
+  works: { label: 'Работает?', yes: 'Работает', no: 'Не работает', goodWhenYes: true },
+  clean: { label: 'Чисто?',    yes: 'Чисто',    no: 'Грязно',      goodWhenYes: true },
+  paid:  { label: 'Оплата?',   yes: 'Платно',   no: 'Бесплатно',   goodWhenYes: false },
+  paper: { label: 'Бумага?',   yes: 'Есть',     no: 'Нет',         goodWhenYes: true },
+};
+
+/* ====================== СОСТОЯНИЕ ====================== */
+const tg = window.Telegram?.WebApp;
+let map;
+let userPlacemark = null;
+let clusterer = null;
+let toiletsById = new Map();
+let currentPosition = null;
+let selectedToilet = null;
+const activeCategories = new Set(Object.keys(CATEGORIES));
+
+let moveDebounceTimer = null;
+let renderDebounceTimer = null;
+let loadSequence = 0;
+let lastQueryCenter = null;
+let confirmedLoadedFor = new Set();
+let assumedLoadedFor = new Set();
+let externalLoadedFor = new Set();
+
+const svgCache = new Map();
+
+/* ====================== TELEGRAM ====================== */
+function initTelegram() {
+  if (!tg) return;
+  tg.ready();
+  tg.expand();
+  if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+  applyTelegramTheme();
+  tg.onEvent('themeChanged', applyTelegramTheme);
+}
+
+function applyTelegramTheme() {
+  if (!tg?.themeParams) return;
+  const p = tg.themeParams;
+  const root = document.documentElement;
+  if (p.bg_color)           root.style.setProperty('--tg-bg', p.bg_color);
+  if (p.text_color)         root.style.setProperty('--tg-text', p.text_color);
+  if (p.hint_color)         root.style.setProperty('--tg-hint', p.hint_color);
+  if (p.button_color)       root.style.setProperty('--tg-button', p.button_color);
+  if (p.button_text_color)  root.style.setProperty('--tg-button-text', p.button_text_color);
+  if (p.secondary_bg_color) root.style.setProperty('--tg-secondary-bg', p.secondary_bg_color);
+}
+
+function haptic(style = 'light') {
+  if (tg?.HapticFeedback) {
+    if (style === 'medium') tg.HapticFeedback.impactOccurred('medium');
+    else tg.HapticFeedback.impactOccurred('light');
+  } else if (navigator.vibrate) {
+    navigator.vibrate(style === 'medium' ? 20 : 10);
+  }
+}
+
+/* ====================== ОТЗЫВЫ ====================== */
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getBaseStats(toiletId) {
+  const h = hashCode(toiletId);
+  return {
+    works: { yes: (h % 18) + 2, no: h % 5 },
+    clean: { yes: (h % 14) + 2, no: (h % 8) + 1 },
+    paid:  { yes: h % 9,         no: (h % 13) + 2 },
+    paper: { yes: (h % 11) + 2, no: (h % 7) },
+  };
+}
+
+function getUserVotes(toiletId) {
+  try {
+    const raw = localStorage.getItem(MY_VOTES_KEY + toiletId);
+    return raw ? JSON.parse(raw) : {};
+  } catch (_) { return {}; }
+}
+
+function saveUserVotes(toiletId, votes) {
+  try {
+    localStorage.setItem(MY_VOTES_KEY + toiletId, JSON.stringify(votes));
+  } catch (_) {}
+}
+
+function getCombinedStats(toiletId) {
+  const base = getBaseStats(toiletId);
+  const myVotes = getUserVotes(toiletId);
+  const combined = {};
+  for (const key in REVIEW_TYPES) {
+    const b = base[key] || { yes: 0, no: 0 };
+    combined[key] = { yes: b.yes, no: b.no };
+    if (myVotes[key] === 'yes') combined[key].yes += 1;
+    if (myVotes[key] === 'no')  combined[key].no  += 1;
+  }
+  return combined;
+}
+
+/**
+ * Проверка — «не работает ли» туалет по отзывам.
+ * Если голосов "не работает" больше 60% от общего числа по works — считаем сломанным.
+ */
+function isLikelyBroken(toiletId) {
+  const stats = getCombinedStats(toiletId);
+  const w = stats.works;
+  const total = w.yes + w.no;
+  if (total < 3) return false;
+  return (w.no / total) > 0.6;
+}
+
+function renderReviews(toilet) {
+  const container = document.getElementById('bs-reviews-list');
+  const countEl = document.getElementById('bs-reviews-count');
+  const stats = getCombinedStats(toilet.id);
+  const myVotes = getUserVotes(toilet.id);
+
+  let totalVotes = 0;
+  for (const key in REVIEW_TYPES) {
+    totalVotes += stats[key].yes + stats[key].no;
+  }
+  countEl.textContent = totalVotes > 0 ? `${totalVotes} голосов` : 'пока нет';
+
+  container.innerHTML = '';
+
+  for (const [key, cfg] of Object.entries(REVIEW_TYPES)) {
+    const s = stats[key];
+    const total = s.yes + s.no;
+    const yesPct = total > 0 ? (s.yes / total) * 100 : 50;
+
+    const item = document.createElement('div');
+    item.className = 'review-item';
+    item.dataset.key = key;
+
+    item.innerHTML = `
+      <div class="review-row">
+        <span class="review-label">${cfg.label}</span>
+        <button class="review-btn" data-value="yes">
+          <span>${cfg.yes}</span>
+          <span class="cnt">${s.yes}</span>
+        </button>
+        <button class="review-btn" data-value="no">
+          <span>${cfg.no}</span>
+          <span class="cnt">${s.no}</span>
+        </button>
+      </div>
+      <div class="review-bar">
+        <div class="review-bar-fill" style="width:${yesPct}%"></div>
+      </div>
+    `;
+
+    const buttons = item.querySelectorAll('.review-btn');
+    buttons.forEach((btn) => {
+      if (myVotes[key] === btn.dataset.value) btn.classList.add('selected');
+      btn.addEventListener('click', () => {
+        handleVote(toilet.id, key, btn.dataset.value);
+      });
+    });
+
+    container.appendChild(item);
+  }
+}
+
+function handleVote(toiletId, reviewKey, value) {
+  const votes = getUserVotes(toiletId);
+
+  if (votes[reviewKey] === value) {
+    delete votes[reviewKey];
+    haptic('light');
+  } else {
+    votes[reviewKey] = value;
+    haptic('medium');
+  }
+
+  saveUserVotes(toiletId, votes);
+  renderReviews(selectedToilet);
+
+  // Обновляем предупреждение "не работает" и метку, если открыт этот же туалет
+  updateNotWorkingNote();
+
+  const cfg = REVIEW_TYPES[reviewKey];
+  if (votes[reviewKey]) {
+    const label = value === 'yes' ? cfg.yes : cfg.no;
+    showToast(`Спасибо! Отмечено: ${label}`);
+  }
+}
+
+function updateNotWorkingNote() {
+  const note = document.getElementById('bs-not-working-note');
+  if (!selectedToilet) { note.classList.add('hidden'); return; }
+  if (isLikelyBroken(selectedToilet.id)) note.classList.remove('hidden');
+  else note.classList.add('hidden');
+}
+
+/* ====================== ФИЛЬТРЫ ====================== */
+function renderFilters() {
+  const el = document.getElementById('filters');
+  el.innerHTML = '';
+  for (const [key, cat] of Object.entries(CATEGORIES)) {
+    const btn = document.createElement('button');
+    btn.className = 'chip active';
+    btn.dataset.cat = key;
+    btn.innerHTML = `<span class="dot" style="background:${cat.color}"></span>${cat.label}`;
+    btn.addEventListener('click', () => {
+      if (activeCategories.has(key)) activeCategories.delete(key);
+      else activeCategories.add(key);
+      btn.classList.toggle('active', activeCategories.has(key));
+      haptic();
+      scheduleRender();
+    });
+    el.appendChild(btn);
+  }
+}
+
+/* ====================== ГЕОЛОКАЦИЯ ====================== */
+function getUserPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject('Geolocation не поддерживается');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (err) => reject(err),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  });
+}
+
+/* ====================== OVERPASS API ====================== */
+function buildConfirmedQuery(south, west, north, east) {
+  const bb = `${south},${west},${north},${east}`;
+  return `[out:json][timeout:25];
+(
+  nwr["amenity"="toilets"](${bb});
+  nwr["toilets"="yes"](${bb});
+  nwr["toilets"="customers"](${bb});
+  nwr["toilets"="public"](${bb});
+);
+out center 300;`;
+}
+
+function buildAssumedQuery(south, west, north, east) {
+  const bb = `${south},${west},${north},${east}`;
+  return `[out:json][timeout:25];
+(
+  nwr["amenity"="fast_food"](${bb});
+  nwr["shop"="mall"](${bb});
+  nwr["shop"="department_store"](${bb});
+  nwr["railway"="station"](${bb});
+  nwr["aeroway"="aerodrome"](${bb});
+  nwr["amenity"="hospital"](${bb});
+);
+out center 200;`;
+}
+
+function bboxKey(south, west, north, east) {
+  const r = (n) => n.toFixed(2);
+  return `${r(south)}_${r(west)}_${r(north)}_${r(east)}`;
+}
+
+async function fetchOverpass(query, cacheKey) {
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      const { ts, data } = JSON.parse(cached);
+      if (Date.now() - ts < CACHE_TTL_MS) return data;
+    } catch (_) {}
+  }
+
+  let lastError = null;
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'data=' + encodeURIComponent(query),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data }));
+      } catch (_) {}
+      return data;
+    } catch (e) {
+      console.warn(`Overpass ${endpoint}:`, e.message);
+      lastError = e;
+    }
+  }
+  throw new Error('Все зеркала недоступны');
+}
+
+/* ====================== ВНЕШНИЕ ИСТОЧНИКИ ====================== */
+async function fetchExternalSources(south, west, north, east) {
+  const results = [];
+
+  try {
+    const isMoscow = south >= 55.1 && north <= 56.1 && west >= 36.5 && east <= 38.5;
+    if (isMoscow) {
+      const apiKey = 'YOUR_MOS_DATA_API_KEY';
+      if (apiKey !== 'YOUR_MOS_DATA_API_KEY') {
+        const res = await fetch(
+          `https://apidata.mos.ru/v1/datasets/1796/rows?api_key=${apiKey}&$filter=Latitude ge ${south} and Latitude le ${north} and Longitude ge ${west} and Longitude le ${east}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          for (const item of data) {
+            const cells = item.Cells || {};
+            const lat = parseFloat(cells.Latitude);
+            const lon = parseFloat(cells.Longitude);
+            if (isNaN(lat) || isNaN(lon)) continue;
+            results.push({
+              id: `mos_${item.global_id || item.id}`,
+              name: cells.Name || 'Общественный туалет (Москва)',
+              address: cells.Address || '',
+              latitude: lat,
+              longitude: lon,
+              category: 'free',
+              source: 'data.mos.ru',
+              access_code: null,
+            });
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('data.mos.ru недоступен:', e.message);
+  }
+
+  return results;
+}
+
+/* ====================== КАТЕГОРИЗАЦИЯ ====================== */
+function determineCategory(tags, isAssumed) {
+  if (isAssumed) return 'assumed';
+  if (tags.amenity === 'toilets') return 'free';
+  if (tags.shop === 'mall' || tags.shop === 'department_store') return 'mall';
+  if (tags.amenity === 'cafe' || tags.amenity === 'restaurant') return 'cafe';
+  if (tags.amenity === 'hospital' || tags.amenity === 'clinic') return 'hospital';
+  if (tags.amenity === 'fast_food') return 'fastfood';
+  return 'other';
+}
+
+function osmToToilet(el, isAssumed) {
+  const lat = el.lat ?? el.center?.lat;
+  const lng = el.lon ?? el.center?.lon;
+  if (lat == null || lng == null) return null;
+
+  const tags = el.tags || {};
+  const category = determineCategory(tags, isAssumed);
+  const osmId = `${isAssumed ? 'a_' : ''}${el.type}_${el.id}`;
+
+  const name = tags['name:ru'] || tags.name || CATEGORIES[category].defaultName;
+
+  let displayName = name;
+  if (isAssumed && !tags['name:ru'] && !tags.name) {
+    if (tags.amenity === 'fast_food') displayName = 'Фастфуд (вероятно есть туалет)';
+    else if (tags.shop === 'mall') displayName = 'Торговый центр';
+    else if (tags.railway === 'station') displayName = 'Вокзал (есть туалет)';
+    else if (tags.aeroway === 'aerodrome') displayName = 'Аэропорт (есть туалет)';
+    else if (tags.amenity === 'hospital') displayName = 'Больница';
+  }
+
+  const address = [tags['addr:street'], tags['addr:housenumber']]
+    .filter(Boolean).join(', ') || 'Адрес не указан';
+
+  return {
+    id: osmId,
+    name: displayName,
+    address,
+    latitude: lat,
+    longitude: lng,
+    category,
+    source: 'OpenStreetMap',
+    access_code: localStorage.getItem(STORAGE_PREFIX + osmId) || null,
+  };
+}
+
+/* ====================== КАРТА + КЛАСТЕР ====================== */
+function initMap() {
+  return new Promise((resolve) => {
+    ymaps.ready(() => {
+      map = new ymaps.Map('map', {
+        center: [55.7558, 37.6173],
+        zoom: 13,
+        controls: ['zoomControl'],
+      }, {
+        suppressMapOpenBlock: true,
+        yandexMapDisablePoiInteractivity: true,
+      });
+
+      clusterer = new ymaps.Clusterer({
+        preset: 'islands#invertedBlueClusterIcons',
+        groupByCoordinates: false,
+        clusterDisableClickZoom: false,
+        clusterHideIconOnBalloonOpen: false,
+        geoObjectHideIconOnBalloonOpen: false,
+        hasBalloon: false,
+        gridSize: 64,
+      });
+      map.geoObjects.add(clusterer);
+
+      map.events.add('click', () => {
+        if (selectedToilet) closeBottomSheet();
+      });
+
+      map.events.add('boundschange', onMapMoved);
+
+      resolve();
+    });
+  });
+}
+
+function onMapMoved() {
+  clearTimeout(moveDebounceTimer);
+  moveDebounceTimer = setTimeout(loadToiletsForCurrentView, MOVE_DEBOUNCE_MS);
+
+  clearTimeout(renderDebounceTimer);
+  renderDebounceTimer = setTimeout(scheduleRender, 250);
+}
+
+function getBbox() {
+  const bounds = map.getBounds();
+  if (!bounds) return null;
+  const lats = [bounds[0][0], bounds[1][0]];
+  const lngs = [bounds[0][1], bounds[1][1]];
+  return {
+    south: Math.min(...lats),
+    north: Math.max(...lats),
+    west:  Math.min(...lngs),
+    east:  Math.max(...lngs),
+  };
+}
+
+function expandBbox(bbox, padding) {
+  const dLat = (bbox.north - bbox.south) * padding;
+  const dLng = (bbox.east - bbox.west) * padding;
+  return {
+    south: bbox.south - dLat,
+    north: bbox.north + dLat,
+    west:  bbox.west - dLng,
+    east:  bbox.east + dLng,
+  };
+}
+
+/* ====================== ЗАГРУЗКА ДАННЫХ ====================== */
+function getZoomRules() {
+  const zoom = map.getZoom();
+  const clamped = Math.max(13, Math.min(18, zoom));
+  return ZOOM_RULES[clamped] || ZOOM_RULES[18];
+}
+
+async function loadToiletsForCurrentView() {
+  const zoom = map.getZoom();
+  const hint = document.getElementById('zoom-hint');
+
+  if (zoom < MIN_ZOOM_FOR_LOAD) {
+    hint.classList.add('show');
+    hideLoadingBar();
+    return;
+  }
+  hint.classList.remove('show');
+
+  const rawBbox = getBbox();
+  if (!rawBbox) return;
+  const bbox = expandBbox(rawBbox, BBOX_PADDING);
+
+  const center = map.getCenter();
+  lastQueryCenter = [center[0], center[1]];
+
+  const key = bboxKey(bbox.south, bbox.west, bbox.north, bbox.east);
+  const mySeq = ++loadSequence;
+  const rules = getZoomRules();
+
+  if (rules.confirmed && !confirmedLoadedFor.has(key)) {
+    showLoadingBar('Ищем туалеты…');
+    try {
+      const data = await fetchOverpass(
+        buildConfirmedQuery(bbox.south, bbox.west, bbox.north, bbox.east),
+        'c_' + key
+      );
+      if (mySeq !== loadSequence) return;
+
+      const toilets = (data.elements || []).map((el) => osmToToilet(el, false)).filter(Boolean);
+      for (const t of toilets) if (!toiletsById.has(t.id)) toiletsById.set(t.id, t);
+      confirmedLoadedFor.add(key);
+
+      scheduleRender();
+      const inView = countInView(toilets, rawBbox);
+      if (inView > 0) {
+        showLoadingBar(`Найдено: ${inView}`, 'count');
+        setTimeout(hideLoadingBar, 1500);
+      } else {
+        showLoadingBar('Точных туалетов нет, ищем в заведениях…', 'empty');
+      }
+    } catch (e) {
+      console.error('Confirmed query failed:', e);
+      showLoadingBar('Ошибка загрузки', 'empty');
+      setTimeout(hideLoadingBar, 2000);
+      return;
+    }
+  }
+
+  if (rules.assumed && !assumedLoadedFor.has(key)) {
+    fetchOverpass(
+      buildAssumedQuery(bbox.south, bbox.west, bbox.north, bbox.east),
+      'a_' + key
+    ).then((data) => {
+      if (mySeq !== loadSequence) return;
+      const toilets = (data.elements || []).map((el) => osmToToilet(el, true)).filter(Boolean);
+      for (const t of toilets) if (!toiletsById.has(t.id)) toiletsById.set(t.id, t);
+      assumedLoadedFor.add(key);
+      scheduleRender();
+    }).catch((e) => console.warn('Assumed query failed:', e));
+  }
+
+  if (!externalLoadedFor.has(key)) {
+    fetchExternalSources(bbox.south, bbox.west, bbox.north, bbox.east).then((external) => {
+      if (mySeq !== loadSequence) return;
+      for (const t of external) {
+        if (!toiletsById.has(t.id)) toiletsById.set(t.id, t);
+      }
+      externalLoadedFor.add(key);
+      scheduleRender();
+    }).catch((e) => console.warn('External sources failed:', e));
+  }
+}
+
+function countInView(list, bbox) {
+  let n = 0;
+  for (const t of list) {
+    if (t.latitude >= bbox.south && t.latitude <= bbox.north &&
+        t.longitude >= bbox.west && t.longitude <= bbox.east) n++;
+  }
+  return n;
+}
+
+/* ====================== ИКОНКИ ====================== */
+function getMarkerSvg(color, letter, isAssumed) {
+  const cacheKey = `${color}|${letter}|${isAssumed}`;
+  let svg = svgCache.get(cacheKey);
+  if (svg) return svg;
+
+  const opacity = isAssumed ? '0.7' : '1';
+  const strokeWidth = isAssumed ? '2' : '2.5';
+  const fontSize = isAssumed ? 15 : 14;
+  svg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="46" viewBox="0 0 38 46" opacity="${opacity}">
+      <path d="M19 0 C8.5 0 0 8.5 0 19 C0 33 19 46 19 46 C19 46 38 33 38 19 C38 8.5 29.5 0 19 0 Z"
+            fill="${color}" stroke="white" stroke-width="${strokeWidth}"/>
+      <text x="19" y="24" font-size="${fontSize}" font-weight="bold" text-anchor="middle"
+            fill="white" font-family="Arial, sans-serif">${letter}</text>
+    </svg>`
+  );
+  svgCache.set(cacheKey, svg);
+  return svg;
+}
+
+const USER_SVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
+    <circle cx="15" cy="15" r="10" fill="#2196f3" stroke="white" stroke-width="3"/>
+    <circle cx="15" cy="15" r="4" fill="white"/>
+  </svg>`
+);
+
+/* ====================== ОТРИСОВКА ====================== */
+let renderScheduled = false;
+function scheduleRender() {
+  if (renderScheduled) return;
+  renderScheduled = true;
+  requestAnimationFrame(() => {
+    renderScheduled = false;
+    renderMarkers();
+  });
+}
+
+function renderMarkers() {
+  if (userPlacemark) { map.geoObjects.remove(userPlacemark); userPlacemark = null; }
+  if (currentPosition) {
+    userPlacemark = new ymaps.Placemark(
+      [currentPosition.lat, currentPosition.lng],
+      {},
+      {
+        iconLayout: 'default#image',
+        iconImageHref: USER_SVG,
+        iconImageSize: [30, 30],
+        iconImageOffset: [-15, -15],
+        iconShape: { type: 'Circle', coordinates: [0, 0], radius: 15 },
+        interactive: false,
+      }
+    );
+    map.geoObjects.add(userPlacemark);
+  }
+
+  if (!clusterer) return;
+  clusterer.removeAll();
+
+  const vb = expandBbox(getBbox(), 0.1);
+  const toAdd = [];
+
+  for (const [id, t] of toiletsById) {
+    if (!activeCategories.has(t.category)) continue;
+    if (t.latitude < vb.south || t.latitude > vb.north) continue;
+    if (t.longitude < vb.west || t.longitude > vb.east) continue;
+
+    const cat = CATEGORIES[t.category];
+    const letter = t.category === 'free' ? 'WC' : cat.emoji;
+
+    const placemark = new ymaps.Placemark(
+      [t.latitude, t.longitude],
+      { hintContent: t.name },
+      {
+        iconLayout: 'default#image',
+        iconImageHref: getMarkerSvg(cat.color, letter, cat.assumed),
+        iconImageSize: [38, 46],
+        iconImageOffset: [-19, -46],
+        // ⚠️ Ключевое: кликабельная зона — прямоугольник вокруг "головы" маркера
+        iconShape: {
+          type: 'Rectangle',
+          coordinates: [[-19, -46], [19, 0]],
+        },
+      }
+    );
+
+    placemark.events.add('click', (e) => {
+      if (e.originalEvent) e.originalEvent.stopPropagation();
+      haptic();
+      openBottomSheet(t);
+    });
+
+    toAdd.push(placemark);
+  }
+
+  clusterer.add(toAdd);
+}
+
+/* ====================== SOS + МАРШРУТ ====================== */
+/**
+ * Открывает маршрут в Яндекс.Картах (или в системном приложении,
+ * если оно установлено). Использует deep link.
+ */
+function openRouteTo(lat, lng) {
+  // Формат: ~ = "моя геопозиция как старт", rtt=pd = пешеходный маршрут
+  const url = `https://yandex.ru/maps/?rtext=~${lat},${lng}&rtt=pd`;
+
+  if (tg?.openLink) {
+    // В Telegram Mini App открывает во внешнем браузере / приложении
+    tg.openLink(url, { try_instant_view: false });
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+/**
+ * SOS: находит ближайший РАБОЧИЙ туалет (по отзывам) и открывает маршрут.
+ * Приоритет:
+ *   1. Подтверждённые OSM + с отзывами "работает"
+ *   2. Подтверждённые OSM без плохих отзывов
+ *   3. Все, кроме "сломанных" по отзывам
+ */
+function findNearestWorkingToilet() {
+  if (!currentPosition) {
+    showToast('Геопозиция не определена');
+    return;
+  }
+
+  const all = [...toiletsById.values()].filter((t) => activeCategories.has(t.category));
+  if (!all.length) {
+    showToast('Поблизости ничего не найдено. Приблизьте карту.');
+    return;
+  }
+
+  // Фильтруем сломанные
+  const notBroken = all.filter((t) => !isLikelyBroken(t.id));
+  const pool = notBroken.length ? notBroken : all;
+
+  // Приоритет: confirmed > assumed
+  const confirmed = pool.filter((t) => !CATEGORIES[t.category].assumed);
+  const candidates = confirmed.length ? confirmed : pool;
+
+  let nearest = candidates[0];
+  let minDist = Infinity;
+  for (const t of candidates) {
+    const d = ymaps.coordSystem.geo.getDistance(
+      [currentPosition.lat, currentPosition.lng],
+      [t.latitude, t.longitude]
+    );
+    if (d < minDist) { minDist = d; nearest = t; }
+  }
+
+  haptic('medium');
+  const meters = Math.round(minDist);
+  const distStr = meters < 1000 ? `${meters} м` : `${(meters / 1000).toFixed(1)} км`;
+  showToast(`Ближайший рабочий: ${distStr}. Открываю маршрут…`);
+
+  setTimeout(() => openRouteTo(nearest.latitude, nearest.longitude), 400);
+}
+
+/* ====================== BOTTOM SHEET ====================== */
+function openBottomSheet(toilet) {
+  selectedToilet = toilet;
+  const cat = CATEGORIES[toilet.category];
+
+  document.getElementById('bs-name').textContent = toilet.name;
+  document.getElementById('bs-address').textContent = toilet.address;
+
+  const catEl = document.getElementById('bs-category');
+  catEl.textContent = cat.assumed ? 'Вероятно есть' : cat.label;
+  catEl.style.background = cat.color;
+
+  const srcEl = document.getElementById('bs-source');
+  srcEl.textContent = toilet.source || 'OSM';
+
+  const note = document.getElementById('bs-assumed-note');
+  if (cat.assumed) note.classList.remove('hidden');
+  else note.classList.add('hidden');
+
+  updateNotWorkingNote();
+  renderReviews(toilet);
+  updateCodeDisplay();
+
+  const sheet = document.getElementById('bottom-sheet');
+  sheet.classList.remove('hidden');
+  sheet.scrollTop = 0;
+  requestAnimationFrame(() => sheet.classList.add('open'));
+}
+
+function updateCodeDisplay() {
+  const code = selectedToilet?.access_code;
+  const display = document.getElementById('bs-code-display');
+  const toggle = document.getElementById('bs-toggle-code');
+  const editBtn = document.getElementById('bs-edit-code');
+
+  if (code) {
+    display.classList.remove('empty');
+    display.textContent = '••••';
+    display.dataset.visible = 'false';
+    display.dataset.code = code;
+    toggle.style.display = 'block';
+    toggle.textContent = 'Показать код';
+    editBtn.textContent = '✏️ Изменить код';
+  } else {
+    display.classList.add('empty');
+    display.textContent = 'Кода пока нет — добавьте первым!';
+    display.dataset.visible = 'false';
+    delete display.dataset.code;
+    toggle.style.display = 'none';
+    editBtn.textContent = '➕ Добавить код';
+  }
+}
+
+function closeBottomSheet() {
+  const sheet = document.getElementById('bottom-sheet');
+  sheet.classList.remove('open');
+  setTimeout(() => { sheet.classList.add('hidden'); selectedToilet = null; }, 300);
+}
+
+/* ====================== ОБРАБОТЧИКИ ====================== */
+document.getElementById('bs-toggle-code').addEventListener('click', () => {
+  const el = document.getElementById('bs-code-display');
+  const btn = document.getElementById('bs-toggle-code');
+  const visible = el.dataset.visible === 'true';
+  if (visible) {
+    el.textContent = '••••'; el.dataset.visible = 'false'; btn.textContent = 'Показать код';
+  } else {
+    el.textContent = el.dataset.code || ''; el.dataset.visible = 'true'; btn.textContent = 'Скрыть';
+  }
+  haptic();
+});
+
+document.getElementById('bs-edit-code').addEventListener('click', () => {
+  document.getElementById('edit-input').value = selectedToilet?.access_code || '';
+  document.getElementById('edit-dialog').classList.remove('hidden');
+  haptic();
+});
+
+document.getElementById('edit-cancel').addEventListener('click', () => {
+  document.getElementById('edit-dialog').classList.add('hidden');
+});
+
+document.getElementById('edit-save').addEventListener('click', () => {
+  const input = document.getElementById('edit-input');
+  const newCode = input.value.trim();
+  if (!newCode || !selectedToilet) return;
+
+  localStorage.setItem(STORAGE_PREFIX + selectedToilet.id, newCode);
+  selectedToilet.access_code = newCode;
+
+  const t = toiletsById.get(selectedToilet.id);
+  if (t) t.access_code = newCode;
+
+  document.getElementById('edit-dialog').classList.add('hidden');
+  updateCodeDisplay();
+  showToast('Код сохранён локально!');
+  haptic();
+});
+
+// Кнопка "Построить маршрут" в BottomSheet
+document.getElementById('bs-route-btn').addEventListener('click', () => {
+  if (!selectedToilet) return;
+  haptic('medium');
+  openRouteTo(selectedToilet.latitude, selectedToilet.longitude);
+});
+
+// SOS
+document.getElementById('sos-btn').addEventListener('click', findNearestWorkingToilet);
+
+/* ====================== TOAST ====================== */
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ====================== ИНДИКАТОР ЗАГРУЗКИ ====================== */
+function showLoadingBar(text, mode = '') {
+  const bar = document.getElementById('loading-bar');
+  const span = document.getElementById('loading-text');
+  const spinner = bar.querySelector('.mini-spinner');
+  span.textContent = text;
+  bar.classList.remove('count', 'empty');
+  if (mode) bar.classList.add(mode);
+  spinner.style.display = (mode === 'count' || mode === 'empty') ? 'none' : 'block';
+  bar.classList.add('show');
+}
+function hideLoadingBar() {
+  document.getElementById('loading-bar').classList.remove('show');
+}
+
+/* ====================== СВАЙП ВНИЗ ====================== */
+(() => {
+  const sheet = document.getElementById('bottom-sheet');
+  const handle = sheet.querySelector('.drag-handle');
+  let startY = null;
+  handle.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+  handle.addEventListener('touchmove', (e) => {
+    if (startY === null) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 0) sheet.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  handle.addEventListener('touchend', (e) => {
+    const dy = e.changedTouches[0].clientY - startY;
+    sheet.style.transform = '';
+    if (dy > 80) closeBottomSheet();
+    startY = null;
+  });
+})();
+
+/* ====================== СТАРТ ====================== */
+function updateLoader(text) { document.getElementById('loader-text').textContent = text; }
+function hideLoader() {
+  const l = document.getElementById('loader');
+  l.classList.add('hidden');
+  setTimeout(() => l.remove(), 400);
+}
+
+async function init() {
+  initTelegram();
+  renderFilters();
+
+  updateLoader('Загружаем карту…');
+  await initMap();
+
+  updateLoader('Определяем вашу геопозицию…');
+  try {
+    currentPosition = await getUserPosition();
+    map.setCenter([currentPosition.lat, currentPosition.lng], 16, { duration: 500 });
+  } catch (e) {
+    console.warn('Геолокация недоступна:', e);
+    showToast('Не удалось определить геопозицию');
+    currentPosition = { lat: 55.7558, lng: 37.6173 };
+  }
+
+  updateLoader('Ищем туалеты рядом…');
+  await loadToiletsForCurrentView();
+
+  hideLoader();
+}
+
+init();
+</script>
+</body>
+</html>
