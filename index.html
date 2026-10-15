@@ -12,424 +12,99 @@
 
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
 :root {
-  --tg-bg: #ffffff;
-  --tg-text: #000000;
-  --tg-hint: #999999;
-  --tg-button: #2481cc;
-  --tg-button-text: #ffffff;
-  --tg-secondary-bg: #f0f0f0;
-  --positive: #43a047;
-  --negative: #e53935;
+  --tg-bg: #ffffff; --tg-text: #000000; --tg-hint: #999999;
+  --tg-button: #2481cc; --tg-button-text: #ffffff; --tg-secondary-bg: #f0f0f0;
+  --positive: #43a047; --negative: #e53935;
 }
-
-html, body {
-  height: 100%; overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--tg-bg); color: var(--tg-text);
-}
-
+html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--tg-bg); color: var(--tg-text); }
 #map { position: absolute; inset: 0; z-index: 1; }
-
-#filters {
-  position: fixed; top: calc(10px + env(safe-area-inset-top));
-  left: 0; right: 0;
-  display: flex; gap: 6px; padding: 0 12px;
-  overflow-x: auto; overflow-y: hidden;
-  z-index: 500;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
+#filters { position: fixed; top: calc(10px + env(safe-area-inset-top)); left: 0; right: 0; display: flex; gap: 6px; padding: 0 12px; overflow-x: auto; overflow-y: hidden; z-index: 500; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 #filters::-webkit-scrollbar { display: none; }
-.chip {
-  flex-shrink: 0; padding: 7px 12px;
-  border-radius: 18px; border: none;
-  background: rgba(255,255,255,0.95); color: #333;
-  font-size: 13px; font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  cursor: pointer; font-family: inherit;
-  opacity: 0.45; white-space: nowrap;
-  transition: opacity 0.15s, transform 0.1s;
-}
+.chip { flex-shrink: 0; padding: 7px 12px; border-radius: 18px; border: none; background: rgba(255,255,255,0.95); color: #333; font-size: 13px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.15); cursor: pointer; font-family: inherit; opacity: 0.45; white-space: nowrap; transition: opacity 0.15s, transform 0.1s; }
 .chip.active { opacity: 1; }
 .chip:active { transform: scale(0.95); }
-.chip .dot {
-  display: inline-block; width: 8px; height: 8px;
-  border-radius: 50%; margin-right: 5px; vertical-align: middle;
-}
-
-#loading-bar {
-  position: fixed; top: calc(54px + env(safe-area-inset-top));
-  left: 50%; transform: translateX(-50%) translateY(-10px);
-  background: rgba(0,0,0,0.82); color: #fff;
-  padding: 8px 16px; border-radius: 18px;
-  font-size: 12px; font-weight: 600;
-  z-index: 400;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.25s, transform 0.25s;
-  display: flex; align-items: center; gap: 8px;
-  max-width: 90%;
-}
+.chip .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+#loading-bar { position: fixed; top: calc(54px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%) translateY(-10px); background: rgba(0,0,0,0.82); color: #fff; padding: 8px 16px; border-radius: 18px; font-size: 12px; font-weight: 600; z-index: 400; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; display: flex; align-items: center; gap: 8px; max-width: 90%; }
 #loading-bar.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-#loading-bar .mini-spinner {
-  width: 12px; height: 12px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  flex-shrink: 0;
-}
+#loading-bar .mini-spinner { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
 #loading-bar.count { background: rgba(30,140,70,0.9); }
 #loading-bar.empty { background: rgba(180,120,0,0.9); }
 @keyframes spin { to { transform: rotate(360deg); } }
-
-#zoom-hint {
-  position: fixed; top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0,0,0,0.78); color: #fff;
-  padding: 16px 22px; border-radius: 14px;
-  font-size: 14px; font-weight: 600;
-  z-index: 400; text-align: center;
-  max-width: 80%; line-height: 1.5;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.3s;
-}
+#zoom-hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.78); color: #fff; padding: 16px 22px; border-radius: 14px; font-size: 14px; font-weight: 600; z-index: 400; text-align: center; max-width: 80%; line-height: 1.5; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
 #zoom-hint.show { opacity: 1; }
-
-#pick-hint {
-  position: fixed; top: calc(54px + env(safe-area-inset-top));
-  left: 50%; transform: translateX(-50%) translateY(-10px);
-  background: rgba(36,129,204,0.95); color: #fff;
-  padding: 10px 18px; border-radius: 18px;
-  font-size: 13px; font-weight: 600;
-  z-index: 700;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.25s, transform 0.25s;
-  text-align: center;
-  max-width: 90%;
-}
+#pick-hint { position: fixed; top: calc(54px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%) translateY(-10px); background: rgba(36,129,204,0.95); color: #fff; padding: 10px 18px; border-radius: 18px; font-size: 13px; font-weight: 600; z-index: 700; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; text-align: center; max-width: 90%; }
 #pick-hint.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-#pick-hint button {
-  margin-left: 8px;
-  background: rgba(255,255,255,0.25);
-  color: #fff; border: none;
-  padding: 3px 8px; border-radius: 10px;
-  font-size: 11px; font-weight: 600;
-  cursor: pointer; font-family: inherit;
-}
-
-#loader {
-  position: fixed; inset: 0;
-  display: flex; flex-direction: column; gap: 14px;
-  align-items: center; justify-content: center;
-  background: var(--tg-bg); color: var(--tg-text);
-  z-index: 1000; font-size: 15px;
-  transition: opacity 0.3s;
-  padding: 20px; text-align: center;
-}
+#pick-hint button { margin-left: 8px; background: rgba(255,255,255,0.25); color: #fff; border: none; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; }
+#loader { position: fixed; inset: 0; display: flex; flex-direction: column; gap: 14px; align-items: center; justify-content: center; background: var(--tg-bg); color: var(--tg-text); z-index: 1000; font-size: 15px; transition: opacity 0.3s; padding: 20px; text-align: center; }
 #loader.hidden { opacity: 0; pointer-events: none; }
-.spinner {
-  width: 34px; height: 34px;
-  border: 3px solid var(--tg-secondary-bg);
-  border-top-color: var(--tg-button);
-  border-radius: 50%;
-  animation: spin 0.9s linear infinite;
-}
+.spinner { width: 34px; height: 34px; border: 3px solid var(--tg-secondary-bg); border-top-color: var(--tg-button); border-radius: 50%; animation: spin 0.9s linear infinite; }
 #loader-text { color: var(--tg-hint); font-size: 14px; line-height: 1.4; }
-
-#sos-btn, #add-btn, #locate-btn {
-  position: fixed; right: 20px;
-  width: 64px; height: 64px; border-radius: 50%;
-  color: #fff; font-weight: 800; font-size: 14px;
-  letter-spacing: 0.5px;
-  border: 3px solid rgba(255,255,255,0.9);
-  z-index: 500; cursor: pointer;
-  transition: transform 0.15s; font-family: inherit;
-}
-#sos-btn {
-  bottom: calc(30px + env(safe-area-inset-bottom));
-  background: #e53935;
-  box-shadow: 0 6px 16px rgba(229,57,53,0.45);
-}
-#add-btn {
-  bottom: calc(110px + env(safe-area-inset-bottom));
-  background: #43a047;
-  box-shadow: 0 6px 16px rgba(67,160,71,0.45);
-  font-size: 32px; font-weight: 400;
-  line-height: 1;
-}
-#locate-btn {
-  bottom: calc(190px + env(safe-area-inset-bottom));
-  background: #2481cc;
-  box-shadow: 0 6px 16px rgba(36,129,204,0.45);
-  font-size: 26px; font-weight: 400;
-  line-height: 1;
-}
+#sos-btn, #add-btn, #locate-btn { position: fixed; right: 20px; width: 64px; height: 64px; border-radius: 50%; color: #fff; font-weight: 800; font-size: 14px; letter-spacing: 0.5px; border: 3px solid rgba(255,255,255,0.9); z-index: 500; cursor: pointer; transition: transform 0.15s; font-family: inherit; }
+#sos-btn { bottom: calc(30px + env(safe-area-inset-bottom)); background: #e53935; box-shadow: 0 6px 16px rgba(229,57,53,0.45); }
+#add-btn { bottom: calc(110px + env(safe-area-inset-bottom)); background: #43a047; box-shadow: 0 6px 16px rgba(67,160,71,0.45); font-size: 32px; font-weight: 400; line-height: 1; }
+#locate-btn { bottom: calc(190px + env(safe-area-inset-bottom)); background: #2481cc; box-shadow: 0 6px 16px rgba(36,129,204,0.45); font-size: 26px; font-weight: 400; line-height: 1; }
 #sos-btn:active, #add-btn:active, #locate-btn:active { transform: scale(0.92); }
 #locate-btn.loading { animation: pulse 1s ease-in-out infinite; }
-@keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(0.9); opacity: 0.7; }
-}
-
-#bottom-sheet {
-  position: fixed; left: 0; right: 0; bottom: 0;
-  background: var(--tg-bg); color: var(--tg-text);
-  border-radius: 20px 20px 0 0;
-  padding: 12px 20px calc(24px + env(safe-area-inset-bottom));
-  z-index: 600; transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-  box-shadow: 0 -6px 24px rgba(0,0,0,0.18);
-  max-height: 85vh; overflow-y: auto; touch-action: pan-y;
-}
+@keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.9); opacity: 0.7; } }
+#bottom-sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--tg-bg); color: var(--tg-text); border-radius: 20px 20px 0 0; padding: 12px 20px calc(24px + env(safe-area-inset-bottom)); z-index: 600; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); box-shadow: 0 -6px 24px rgba(0,0,0,0.18); max-height: 85vh; overflow-y: auto; touch-action: pan-y; }
 #bottom-sheet.hidden { display: none; }
 #bottom-sheet.open { transform: translateY(0); }
-.drag-handle {
-  width: 40px; height: 4px;
-  background: var(--tg-hint); opacity: 0.4;
-  border-radius: 2px; margin: 0 auto 14px;
-}
-#bs-category {
-  display: inline-block; padding: 3px 10px; border-radius: 12px;
-  font-size: 11px; font-weight: 700; color: #fff;
-  text-transform: uppercase; letter-spacing: 0.5px;
-}
-#bs-source {
-  display: inline-block; padding: 2px 8px; border-radius: 10px;
-  font-size: 10px; font-weight: 600;
-  background: var(--tg-secondary-bg); color: var(--tg-hint);
-  margin-left: 6px; text-transform: uppercase;
-}
-#bs-source.user-source {
-  background: #e8f5e9; color: #2e7d32;
-}
+.drag-handle { width: 40px; height: 4px; background: var(--tg-hint); opacity: 0.4; border-radius: 2px; margin: 0 auto 14px; }
+#bs-category { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; }
+#bs-source { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--tg-secondary-bg); color: var(--tg-hint); margin-left: 6px; text-transform: uppercase; }
+#bs-source.user-source { background: #e8f5e9; color: #2e7d32; }
 #bs-name { font-size: 20px; font-weight: 700; margin: 10px 0 6px; }
 .bs-address { color: var(--tg-hint); font-size: 14px; margin-bottom: 16px; line-height: 1.4; }
-
-#bs-assumed-note {
-  background: #fff8e1; color: #8a6d00;
-  border-radius: 10px; padding: 10px 12px;
-  font-size: 13px; line-height: 1.4; margin-bottom: 14px;
-}
+#bs-assumed-note { background: #fff8e1; color: #8a6d00; border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.4; margin-bottom: 14px; }
 #bs-assumed-note.hidden { display: none; }
-
-#bs-not-working-note {
-  background: #ffebee; color: #b71c1c;
-  border-radius: 10px; padding: 10px 12px;
-  font-size: 13px; line-height: 1.4; margin-bottom: 14px;
-  font-weight: 600;
-}
+#bs-not-working-note { background: #ffebee; color: #b71c1c; border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.4; margin-bottom: 14px; font-weight: 600; }
 #bs-not-working-note.hidden { display: none; }
-
-#bs-route-btn {
-  width: 100%; padding: 13px; border-radius: 12px; border: none;
-  background: var(--tg-button); color: var(--tg-button-text);
-  font-size: 15px; font-weight: 600;
-  cursor: pointer; font-family: inherit;
-  margin-bottom: 14px;
-  transition: opacity 0.15s, transform 0.1s;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-}
+#bs-route-btn { width: 100%; padding: 13px; border-radius: 12px; border: none; background: var(--tg-button); color: var(--tg-button-text); font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; margin-bottom: 14px; transition: opacity 0.15s, transform 0.1s; display: flex; align-items: center; justify-content: center; gap: 8px; }
 #bs-route-btn:active { opacity: 0.8; transform: scale(0.98); }
-
-#bs-reviews {
-  padding: 14px 0;
-  border-top: 1px solid var(--tg-secondary-bg);
-  border-bottom: 1px solid var(--tg-secondary-bg);
-  margin-bottom: 14px;
-}
-.reviews-header {
-  display: flex; justify-content: space-between; align-items: baseline;
-  margin-bottom: 12px;
-}
+#bs-reviews { padding: 14px 0; border-top: 1px solid var(--tg-secondary-bg); border-bottom: 1px solid var(--tg-secondary-bg); margin-bottom: 14px; }
+.reviews-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
 .reviews-title { font-weight: 700; font-size: 15px; }
 .reviews-count { font-size: 12px; color: var(--tg-hint); font-weight: 500; }
-
 .review-item { margin-bottom: 14px; }
 .review-item:last-child { margin-bottom: 0; }
-
-.review-row {
-  display: flex; align-items: center; gap: 6px;
-  margin-bottom: 6px;
-}
-.review-label {
-  flex: 1;
-  font-size: 13px; font-weight: 600;
-  color: var(--tg-text);
-}
-.review-btn {
-  padding: 5px 10px;
-  border-radius: 14px;
-  border: 1.5px solid var(--tg-secondary-bg);
-  background: transparent;
-  color: var(--tg-text);
-  font-size: 12px; font-weight: 600;
-  cursor: pointer; font-family: inherit;
-  transition: all 0.15s;
-  white-space: nowrap;
-  display: inline-flex; align-items: center; gap: 4px;
-  position: relative;
-  z-index: 1;
-}
+.review-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.review-label { flex: 1; font-size: 13px; font-weight: 600; color: var(--tg-text); }
+.review-btn { padding: 5px 10px; border-radius: 14px; border: 1.5px solid var(--tg-secondary-bg); background: transparent; color: var(--tg-text); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; position: relative; z-index: 1; }
 .review-btn:active { transform: scale(0.94); }
-.review-btn.selected {
-  border-color: var(--tg-button);
-  background: color-mix(in srgb, var(--tg-button) 18%, transparent);
-  color: var(--tg-button);
-}
-.review-btn .cnt {
-  font-weight: 700; opacity: 0.65;
-  font-size: 11px;
-}
-
-.review-bar {
-  height: 4px;
-  background: var(--tg-secondary-bg);
-  border-radius: 2px;
-  overflow: hidden;
-  display: flex;
-}
-.review-bar-fill {
-  height: 100%;
-  background: var(--positive);
-  transition: width 0.35s ease;
-}
-.review-bar-empty {
-  height: 100%;
-  width: 100%;
-  background: var(--tg-secondary-bg);
-}
-
-.code-row {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 8px;
-}
+.review-btn.selected { border-color: var(--tg-button); background: color-mix(in srgb, var(--tg-button) 18%, transparent); color: var(--tg-button); }
+.review-btn .cnt { font-weight: 700; opacity: 0.65; font-size: 11px; }
+.review-bar { height: 4px; background: var(--tg-secondary-bg); border-radius: 2px; overflow: hidden; display: flex; }
+.review-bar-fill { height: 100%; background: var(--positive); transition: width 0.35s ease; }
+.review-bar-empty { height: 100%; width: 100%; background: var(--tg-secondary-bg); }
+.code-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .code-label { font-weight: 600; font-size: 15px; }
-#bs-toggle-code {
-  background: none; border: none; color: var(--tg-button);
-  font-size: 14px; font-weight: 600; cursor: pointer;
-  padding: 6px 8px; font-family: inherit;
-}
-#bs-code-display {
-  background: var(--tg-secondary-bg); border-radius: 12px;
-  padding: 18px; text-align: center;
-  font-size: 30px; font-weight: 800; letter-spacing: 8px;
-  transition: background 0.35s, color 0.35s;
-  margin-bottom: 14px; user-select: none;
-  min-height: 66px;
-}
-#bs-code-display[data-visible="true"] {
-  background: color-mix(in srgb, var(--tg-button) 15%, transparent);
-  color: var(--tg-button);
-}
-#bs-code-display.empty {
-  font-size: 14px; letter-spacing: 0; font-weight: 500;
-  color: var(--tg-hint);
-}
-
-.btn {
-  width: 100%; padding: 13px; border-radius: 12px; border: none;
-  font-size: 15px; font-weight: 600; cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s; font-family: inherit;
-}
+#bs-toggle-code { background: none; border: none; color: var(--tg-button); font-size: 14px; font-weight: 600; cursor: pointer; padding: 6px 8px; font-family: inherit; }
+#bs-code-display { background: var(--tg-secondary-bg); border-radius: 12px; padding: 18px; text-align: center; font-size: 30px; font-weight: 800; letter-spacing: 8px; transition: background 0.35s, color 0.35s; margin-bottom: 14px; user-select: none; min-height: 66px; }
+#bs-code-display[data-visible="true"] { background: color-mix(in srgb, var(--tg-button) 15%, transparent); color: var(--tg-button); }
+#bs-code-display.empty { font-size: 14px; letter-spacing: 0; font-weight: 500; color: var(--tg-hint); }
+.btn { width: 100%; padding: 13px; border-radius: 12px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s; font-family: inherit; }
 .btn:active { opacity: 0.75; transform: scale(0.98); }
 .btn-primary { background: var(--tg-button); color: var(--tg-button-text); }
-.btn-outline {
-  background: transparent; color: var(--tg-button);
-  border: 1.5px solid var(--tg-button);
-}
-
-#edit-dialog, #add-dialog {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 1000; padding: 20px;
-  animation: fadeIn 0.2s;
-  overflow-y: auto;
-}
+.btn-outline { background: transparent; color: var(--tg-button); border: 1.5px solid var(--tg-button); }
+#edit-dialog, #add-dialog { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; animation: fadeIn 0.2s; overflow-y: auto; }
 #edit-dialog.hidden, #add-dialog.hidden { display: none; }
 @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-.dialog-box {
-  background: var(--tg-bg); color: var(--tg-text);
-  border-radius: 16px; padding: 22px;
-  width: 100%; max-width: 380px;
-  animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
-  max-height: 90vh; overflow-y: auto;
-  margin: auto;
-}
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0 }
-  to { transform: translateY(0); opacity: 1 }
-}
+.dialog-box { background: var(--tg-bg); color: var(--tg-text); border-radius: 16px; padding: 22px; width: 100%; max-width: 380px; animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); max-height: 90vh; overflow-y: auto; margin: auto; }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
 .dialog-box h3 { margin-bottom: 6px; font-size: 18px; }
 .dialog-box > p { color: var(--tg-hint); font-size: 13px; margin-bottom: 14px; }
-
-#edit-input, #add-name, #add-address, #add-code {
-  width: 100%; padding: 13px; border-radius: 10px;
-  border: 1.5px solid var(--tg-hint);
-  background: var(--tg-bg); color: var(--tg-text);
-  font-size: 16px; margin-bottom: 12px; font-family: inherit;
-}
-#edit-input:focus, #add-name:focus, #add-address:focus, #add-code:focus {
-  outline: none; border-color: var(--tg-button);
-}
-.dialog-box label {
-  display: block;
-  font-size: 13px; font-weight: 600;
-  margin-bottom: 6px; color: var(--tg-hint);
-}
-
-.cat-picker {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  margin-bottom: 12px;
-}
-.cat-pick {
-  padding: 6px 10px;
-  border-radius: 14px;
-  border: 1.5px solid var(--tg-secondary-bg);
-  background: transparent;
-  color: var(--tg-text);
-  font-size: 12px; font-weight: 600;
-  cursor: pointer; font-family: inherit;
-  transition: all 0.15s;
-}
-.cat-pick.selected {
-  border-color: var(--tg-button);
-  background: color-mix(in srgb, var(--tg-button) 18%, transparent);
-  color: var(--tg-button);
-}
-
-.coords-display {
-  padding: 10px 12px;
-  background: var(--tg-secondary-bg);
-  border-radius: 10px;
-  font-size: 13px; font-family: ui-monospace, monospace;
-  color: var(--tg-hint);
-  margin-bottom: 12px;
-  display: flex; justify-content: space-between; align-items: center;
-  gap: 8px;
-}
-.coords-display button {
-  background: none; border: none;
-  color: var(--tg-button);
-  font-size: 12px; font-weight: 600;
-  cursor: pointer; font-family: inherit;
-  padding: 4px 8px;
-}
-
+#edit-input, #add-name, #add-address, #add-code { width: 100%; padding: 13px; border-radius: 10px; border: 1.5px solid var(--tg-hint); background: var(--tg-bg); color: var(--tg-text); font-size: 16px; margin-bottom: 12px; font-family: inherit; }
+#edit-input:focus, #add-name:focus, #add-address:focus, #add-code:focus { outline: none; border-color: var(--tg-button); }
+.dialog-box label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--tg-hint); }
+.cat-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.cat-pick { padding: 6px 10px; border-radius: 14px; border: 1.5px solid var(--tg-secondary-bg); background: transparent; color: var(--tg-text); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.cat-pick.selected { border-color: var(--tg-button); background: color-mix(in srgb, var(--tg-button) 18%, transparent); color: var(--tg-button); }
+.coords-display { padding: 10px 12px; background: var(--tg-secondary-bg); border-radius: 10px; font-size: 13px; font-family: ui-monospace, monospace; color: var(--tg-hint); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.coords-display button { background: none; border: none; color: var(--tg-button); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 4px 8px; }
 .dialog-actions { display: flex; gap: 8px; margin-top: 14px; }
 .dialog-actions .btn { flex: 1; }
-
-#toast {
-  position: fixed; bottom: 130px; left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  background: rgba(0,0,0,0.85); color: #fff;
-  padding: 10px 20px; border-radius: 20px;
-  font-size: 14px; opacity: 0;
-  transition: opacity 0.3s, transform 0.3s;
-  z-index: 2000; pointer-events: none;
-  max-width: 80%; text-align: center;
-}
+#toast { position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(0,0,0,0.85); color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity 0.3s, transform 0.3s; z-index: 2000; pointer-events: none; max-width: 80%; text-align: center; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
@@ -437,50 +112,28 @@ html, body {
 
 <div id="map"></div>
 <div id="filters"></div>
-
 <div id="loading-bar"><div class="mini-spinner"></div><span id="loading-text">Ищем туалеты…</span></div>
 <div id="zoom-hint">Приблизьте карту,<br>чтобы увидеть туалеты</div>
-<div id="pick-hint">
-  Тапните по карте, чтобы указать точку
-  <button id="pick-cancel">Отмена</button>
-</div>
+<div id="pick-hint">Тапните по карте, чтобы указать точку<button id="pick-cancel">Отмена</button></div>
 
-<button id="locate-btn" title="Моё местоположение">📍</button>
-<button id="add-btn" title="Добавить туалет">+</button>
-<button id="sos-btn" title="Ближайший туалет">SOS</button>
+<button id="locate-btn">📍</button>
+<button id="add-btn">+</button>
+<button id="sos-btn">SOS</button>
 
 <div id="bottom-sheet" class="hidden">
   <div class="drag-handle"></div>
-  <div>
-    <span id="bs-category"></span>
-    <span id="bs-source"></span>
-  </div>
+  <div><span id="bs-category"></span><span id="bs-source"></span></div>
   <h2 id="bs-name"></h2>
   <p class="bs-address" id="bs-address"></p>
-
-  <div id="bs-assumed-note" class="hidden">
-    ⚠️ Туалет здесь не подтверждён. Скорее всего, доступен для посетителей, но может быть платным или «только для клиентов».
-  </div>
-
-  <div id="bs-not-working-note" class="hidden">
-    ⛔ По отзывам пользователей туалет не работает
-  </div>
-
+  <div id="bs-assumed-note" class="hidden">⚠️ Туалет здесь не подтверждён. Скорее всего, доступен для посетителей, но может быть платным или «только для клиентов».</div>
+  <div id="bs-not-working-note" class="hidden">⛔ По отзывам пользователей туалет не работает</div>
   <button id="bs-route-btn">🧭 Построить маршрут</button>
-
   <div id="bs-reviews">
-    <div class="reviews-header">
-      <span class="reviews-title">Отзывы</span>
-      <span class="reviews-count" id="bs-reviews-count"></span>
-    </div>
+    <div class="reviews-header"><span class="reviews-title">Отзывы</span><span class="reviews-count" id="bs-reviews-count"></span></div>
     <div id="bs-reviews-list"></div>
   </div>
-
   <div id="bs-code-block">
-    <div class="code-row">
-      <span class="code-label">Код доступа:</span>
-      <button id="bs-toggle-code">Показать код</button>
-    </div>
+    <div class="code-row"><span class="code-label">Код доступа:</span><button id="bs-toggle-code">Показать код</button></div>
     <div id="bs-code-display"></div>
     <button id="bs-edit-code" class="btn btn-outline">✏️ Изменить код</button>
   </div>
@@ -491,10 +144,7 @@ html, body {
     <h3>Код доступа</h3>
     <p>Помогите другим — оставьте код от двери или замка</p>
     <input id="edit-input" type="text" inputmode="numeric" placeholder="Например: 1234">
-    <div class="dialog-actions">
-      <button id="edit-cancel" class="btn btn-outline">Отмена</button>
-      <button id="edit-save" class="btn btn-primary">Сохранить</button>
-    </div>
+    <div class="dialog-actions"><button id="edit-cancel" class="btn btn-outline">Отмена</button><button id="edit-save" class="btn btn-primary">Сохранить</button></div>
   </div>
 </div>
 
@@ -502,45 +152,28 @@ html, body {
   <div class="dialog-box">
     <h3>Добавить туалет</h3>
     <p>Помогите другим — отметьте место, где точно есть туалет</p>
-
     <label for="add-name">Название</label>
     <input id="add-name" type="text" placeholder="Например: Туалет в ТЦ Галерея">
-
     <label>Категория</label>
     <div class="cat-picker" id="add-cats"></div>
-
     <label for="add-address">Адрес (необязательно)</label>
     <input id="add-address" type="text" placeholder="Улица, дом">
-
     <label for="add-code">Код доступа (необязательно)</label>
     <input id="add-code" type="text" inputmode="numeric" placeholder="Например: 1234#">
-
     <label>Координаты</label>
-    <div class="coords-display">
-      <span id="add-coords">—</span>
-      <button id="add-pick-on-map" type="button">Указать на карте</button>
-    </div>
-
-    <div class="dialog-actions">
-      <button id="add-cancel" class="btn btn-outline">Отмена</button>
-      <button id="add-save" class="btn btn-primary">Сохранить</button>
-    </div>
+    <div class="coords-display"><span id="add-coords">—</span><button id="add-pick-on-map" type="button">Указать на карте</button></div>
+    <div class="dialog-actions"><button id="add-cancel" class="btn btn-outline">Отмена</button><button id="add-save" class="btn btn-primary">Сохранить</button></div>
   </div>
 </div>
 
 <div id="toast"></div>
-<div id="loader">
-  <div class="spinner"></div>
-  <div id="loader-text">Загрузка…</div>
-</div>
+<div id="loader"><div class="spinner"></div><div id="loader-text">Загрузка…</div></div>
 
 <script src="https://api-maps.yandex.ru/2.1/?apikey=3de2fd9f-e71a-4177-baf7-80f343a3afaf&lang=ru_RU"></script>
 
 <script>
 /* ====================== FIREBASE CONFIG ====================== */
-/* ⚠️ ВСТАВЬ СВОЙ КОНФИГ ИЗ FIREBASE CONSOLE СЮДА.
-   Пока оставь как есть — приложение будет работать в локальном режиме. */
-const firebaseConfig = {
+const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDDcxDEVTVb_Ii8tmFbP2rXBBPn4hTilSg",
   authDomain: "toilet-5ae20.firebaseapp.com",
   databaseURL: "https://toilet-5ae20-default-rtdb.europe-west1.firebasedatabase.app",
@@ -549,24 +182,19 @@ const firebaseConfig = {
   messagingSenderId: "796745360469",
   appId: "1:796745360469:web:ec6f42cae6bb13ecb060dc"
 };
-
 const FIREBASE_ENABLED = !FIREBASE_CONFIG.apiKey.includes('YOUR_API_KEY');
-
 let fbApp = null, fbDb = null, fbAuth = null, fbUid = null;
-let fbToiletsRef = null;
 
-/* ====================== КОНФИГ ====================== */
+/* ====================== КОНСТАНТЫ ====================== */
 const MIN_ZOOM_FOR_LOAD = 13;
-const MOVE_DEBOUNCE_MS = 500;
-const TILE_SIZE_DEG = 0.05;      // ~5 км
-const TILE_LOAD_RADIUS = 1;      // тайлы ±1 вокруг текущего
+const MOVE_DEBOUNCE_MS = 400;
+const TILE_SIZE_DEG = 0.05;         // ~5 км
 const SEARCH_RADIUS = 3500;
-const OVERPASS_TIMEOUT_MS = 7000;
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 часов для тайла
+const TILE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const OVERPASS_TIMEOUT_MS = 8000;
 const STORAGE_PREFIX = 'tg_toilet_code_';
-const MY_VOTES_KEY = 'tg_toilet_myvotes_';
-const USER_TOILETS_KEY = 'tg_toilet_user_added_v2';
-const TILE_CACHE_PREFIX = 'tg_tile_';
+const MY_VOTES_KEY = 'tg_toilet_myvotes_v2_';
+const TILE_LOCAL_PREFIX = 'tg_tile_v2_';
 
 const OVERPASS_ENDPOINTS = [
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
@@ -586,43 +214,28 @@ const CATEGORIES = {
   other:     { label: 'Другое',       emoji: '📌', color: '#757575', assumed: true },
 };
 
-// Быстрый набор — грузится в первую очередь
-const FAST_QUERIES = [
-  { cat: 'free', q: (lat, lng) => `[out:json][timeout:8];
-    ( nwr["amenity"="toilets"](around:${SEARCH_RADIUS},${lat},${lng}); );
-    out center 60;` },
-  { cat: 'transport', q: (lat, lng) => `[out:json][timeout:8];
-    ( nwr["railway"="station"](around:${SEARCH_RADIUS},${lat},${lng}); );
-    out center 20;` },
-  { cat: 'mall', q: (lat, lng) => `[out:json][timeout:8];
-    (
-      nwr["shop"="mall"](around:${SEARCH_RADIUS},${lat},${lng});
-      nwr["shop"="department_store"](around:${SEARCH_RADIUS},${lat},${lng});
-    );
-    out center 20;` },
-  { cat: 'fastfood', q: (lat, lng) => `[out:json][timeout:8];
-    ( nwr["amenity"="fast_food"](around:${SEARCH_RADIUS},${lat},${lng}); );
-    out center 30;` },
-];
+// FAST — критично важное, короткий таймаут, грузим первым
+const TILE_FAST_QUERY = (lat, lng) => `[out:json][timeout:12];
+(
+  nwr["amenity"="toilets"](around:${SEARCH_RADIUS},${lat},${lng});
+  nwr["toilets"="yes"](around:${SEARCH_RADIUS},${lat},${lng});
+  nwr["railway"="station"](around:${SEARCH_RADIUS},${lat},${lng});
+  nwr["shop"="mall"](around:${SEARCH_RADIUS},${lat},${lng});
+  nwr["shop"="department_store"](around:${SEARCH_RADIUS},${lat},${lng});
+  nwr["amenity"="fast_food"](around:${SEARCH_RADIUS},${lat},${lng});
+);
+out center 200;`;
 
-// Медленный набор — в фоне
-const SLOW_QUERIES = [
-  { cat: 'hospital', q: (lat, lng) => `[out:json][timeout:10];
-    (
-      nwr["amenity"="hospital"](around:${SEARCH_RADIUS},${lat},${lng});
-      nwr["amenity"="clinic"](around:${SEARCH_RADIUS},${lat},${lng});
-    );
-    out center 30;` },
-  { cat: 'fuel', q: (lat, lng) => `[out:json][timeout:10];
-    ( nwr["amenity"="fuel"](around:${SEARCH_RADIUS},${lat},${lng}); );
-    out center 30;` },
-  { cat: 'cafe', q: (lat, lng) => `[out:json][timeout:10];
-    (
-      nwr["amenity"="cafe"](around:${SEARCH_RADIUS},${lat},${lng});
-      nwr["amenity"="restaurant"](around:${SEARCH_RADIUS},${lat},${lng});
-    );
-    out center 40;` },
-];
+// SLOW — второстепенное, в фоне
+const TILE_SLOW_QUERY = (lat, lng) => `[out:json][timeout:20];
+(
+  nwr["amenity"="hospital"](around:${SEARCH_RADIUS},${lat},${lng});
+  nwr["amenity"="clinic"](around:${SEARCH_RADIUS},${lat},${lng});
+  nwr["amenity"="fuel"](around:${SEARCH_RADIUS},${lat},${lng});
+  nwr["amenity"="cafe"](around:${SEARCH_RADIUS},${lat},${lng});
+  nwr["amenity"="restaurant"](around:${SEARCH_RADIUS},${lat},${lng});
+);
+out center 200;`;
 
 const REVIEW_TYPES = {
   works: { label: 'Работает?', yes: 'Работает', no: 'Не работает' },
@@ -635,81 +248,23 @@ const REVIEW_TYPES = {
 const tg = window.Telegram?.WebApp;
 let map;
 let userPlacemark = null;
-let toiletsById = new Map();       // все туалеты (OSM + Firebase)
-let userToiletsById = new Map();   // локальные (когда Firebase отключён)
+let toiletsById = new Map();
 let currentPosition = null;
 let selectedToilet = null;
 const activeCategories = new Set(Object.keys(CATEGORIES));
 const currentMarkers = new Map();
-
+const loadedTiles = new Set();
+const loadingTiles = new Set();
 let moveDebounceTimer = null;
 let renderDebounceTimer = null;
-let loadSequence = 0;
-const loadedTiles = new Set();
+let loadSeq = 0;
 const svgCache = new Map();
 let suppressMapCloseUntil = 0;
-
 let addingToilet = null;
 let pickMode = false;
 let tempPickMarker = null;
-
 let locationDetermined = false;
 let isCentering = false;
-
-/* ====================== FIREBASE INIT ====================== */
-async function initFirebase() {
-  if (!FIREBASE_ENABLED) {
-    console.log('🔥 Firebase отключён — работаем локально');
-    return;
-  }
-
-  try {
-    fbApp = firebase.initializeApp(FIREBASE_CONFIG);
-    fbDb = firebase.database();
-    fbAuth = firebase.auth();
-
-    // Анонимная авторизация — даёт uid для голосования
-    const cred = await fbAuth.signInAnonymously();
-    fbUid = cred.user.uid;
-    console.log('🔥 Firebase OK, uid:', fbUid);
-
-    // Слушаем ВСЕ туалеты (их будет не так много — сотни, не миллионы)
-    fbToiletsRef = fbDb.ref('toilets');
-    fbToiletsRef.on('value', (snapshot) => {
-      const data = snapshot.val() || {};
-      let added = 0;
-      for (const [id, t] of Object.entries(data)) {
-        if (!t || !t.lat || !t.lng) continue;
-        // Пропускаем свои (уже есть локально)
-        if (toiletsById.has(id)) continue;
-
-        toiletsById.set(id, {
-          id,
-          name: t.name || 'Туалет',
-          address: t.address || 'Адрес не указан',
-          latitude: t.lat,
-          longitude: t.lng,
-          category: t.category || 'other',
-          source: t.source || 'user',
-          access_code: t.code || null,
-          votes: t.votes || null,
-          fbid: id,
-        });
-        added++;
-      }
-      if (added > 0) {
-        console.log(`🔥 Firebase: подгружено ${added}`);
-        scheduleRender();
-      }
-    }, (err) => {
-      console.warn('Firebase listener error:', err);
-    });
-
-  } catch (e) {
-    console.error('Firebase init failed:', e);
-    // Тихий фолбэк в локальный режим
-  }
-}
 
 /* ====================== TELEGRAM ====================== */
 function initTelegram() {
@@ -720,7 +275,6 @@ function initTelegram() {
   applyTelegramTheme();
   tg.onEvent('themeChanged', applyTelegramTheme);
 }
-
 function applyTelegramTheme() {
   if (!tg?.themeParams) return;
   const p = tg.themeParams;
@@ -732,7 +286,6 @@ function applyTelegramTheme() {
   if (p.button_text_color)  root.style.setProperty('--tg-button-text', p.button_text_color);
   if (p.secondary_bg_color) root.style.setProperty('--tg-secondary-bg', p.secondary_bg_color);
 }
-
 function haptic(style = 'light') {
   if (tg?.HapticFeedback) {
     try {
@@ -744,124 +297,555 @@ function haptic(style = 'light') {
   }
 }
 
-/* ====================== ЛОКАЛЬНЫЕ ПОЛЬЗОВАТЕЛЬСКИЕ ТУАЛЕТЫ ====================== */
-function loadUserToilets() {
+/* ====================== FIREBASE ====================== */
+async function initFirebase() {
+  if (!FIREBASE_ENABLED) {
+    console.log('🔥 Firebase отключён');
+    return;
+  }
   try {
-    const raw = localStorage.getItem(USER_TOILETS_KEY);
-    if (!raw) return;
-    const arr = JSON.parse(raw);
-    for (const t of arr) {
-      // если Firebase выключен — отрисовываем их на карте
-      if (!FIREBASE_ENABLED) {
-        userToiletsById.set(t.id, t);
+    fbApp = firebase.initializeApp(FIREBASE_CONFIG);
+    fbDb = firebase.database();
+    fbAuth = firebase.auth();
+    const cred = await fbAuth.signInAnonymously();
+    fbUid = cred.user.uid;
+    console.log('🔥 Firebase OK, uid:', fbUid);
+
+    // Слушаем ВСЕ пользовательские туалеты (их будет не много)
+    fbDb.ref('toilets').on('value', (snapshot) => {
+      const data = snapshot.val() || {};
+      let changed = false;
+
+      for (const [id, t] of Object.entries(data)) {
+        if (!t || !t.lat || !t.lng) continue;
+
+        const existing = toiletsById.get(id);
+        if (existing) {
+          // Обновляем существующий — голоса, код, имя
+          const oldVotes = JSON.stringify(existing.votes || null);
+          const newVotes = JSON.stringify(t.votes || null);
+          const oldCode = existing.access_code;
+          const newCode = t.code || null;
+          if (oldVotes !== newVotes || oldCode !== newCode) {
+            existing.votes = t.votes || null;
+            if (t.code != null) existing.access_code = t.code;
+            changed = true;
+          }
+        } else {
+          // Новый туалет
+          toiletsById.set(id, {
+            id,
+            name: t.name || 'Туалет',
+            address: t.address || 'Адрес не указан',
+            latitude: t.lat,
+            longitude: t.lng,
+            category: t.category || 'other',
+            source: 'user',
+            access_code: t.code || null,
+            votes: t.votes || null,
+            fbid: id,
+          });
+          changed = true;
+        }
       }
-    }
-    console.log(`Локальных туалетов: ${userToiletsById.size}`);
-  } catch (_) {}
-}
 
-function saveUserToilets() {
-  try {
-    localStorage.setItem(USER_TOILETS_KEY, JSON.stringify(Array.from(userToiletsById.values())));
-  } catch (_) {}
-}
-
-function makeId() {
-  return 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+      if (changed) {
+        console.log('🔥 Firebase: обновление', toiletsById.size);
+        scheduleRender();
+        // Если открыта карточка — обновляем её
+        if (selectedToilet) {
+          const updated = toiletsById.get(selectedToilet.id);
+          if (updated) {
+            selectedToilet = updated;
+            renderReviews(updated);
+            updateNotWorkingNote();
+            updateCodeDisplay();
+          }
+        }
+      }
+    }, (err) => {
+      console.warn('Firebase listener error:', err);
+    });
+  } catch (e) {
+    console.error('Firebase init failed:', e);
+  }
 }
 
 /* ====================== ТАЙЛЫ ====================== */
-function getTileKey(lat, lng) {
-  const tLat = Math.floor(lat / TILE_SIZE_DEG);
-  const tLng = Math.floor(lng / TILE_SIZE_DEG);
-  return `${tLat}_${tLng}`;
-}
-
-function getVisibleTiles() {
-  const bounds = map.getBounds();
-  if (!bounds) return [];
-  const south = Math.min(bounds[0][0], bounds[1][0]) - TILE_SIZE_DEG;
-  const north = Math.max(bounds[0][0], bounds[1][0]) + TILE_SIZE_DEG;
-  const west  = Math.min(bounds[0][1], bounds[1][1]) - TILE_SIZE_DEG;
-  const east  = Math.max(bounds[0][1], bounds[1][1]) + TILE_SIZE_DEG;
-
+function getTilesAround(radius) {
+  const c = map.getCenter();
+  const cLat = Math.floor(c[0] / TILE_SIZE_DEG);
+  const cLng = Math.floor(c[1] / TILE_SIZE_DEG);
   const tiles = [];
-  const startLat = Math.floor(south / TILE_SIZE_DEG);
-  const endLat   = Math.floor(north / TILE_SIZE_DEG);
-  const startLng = Math.floor(west / TILE_SIZE_DEG);
-  const endLng   = Math.floor(east / TILE_SIZE_DEG);
-
-  for (let la = startLat; la <= endLat; la++) {
-    for (let ln = startLng; ln <= endLng; ln++) {
+  for (let la = cLat - radius; la <= cLat + radius; la++) {
+    for (let ln = cLng - radius; ln <= cLng + radius; ln++) {
       tiles.push({ key: `${la}_${ln}`, lat: la, lng: ln });
     }
   }
   return tiles;
 }
-
-function tileCacheKey(tileKey) {
-  return TILE_CACHE_PREFIX + tileKey;
+function tileCenter(lat, lng) {
+  return {
+    lat: lat * TILE_SIZE_DEG + TILE_SIZE_DEG / 2,
+    lng: lng * TILE_SIZE_DEG + TILE_SIZE_DEG / 2,
+  };
 }
-
-function loadTileCache(tileKey) {
+function loadLocalTile(tileKey) {
   try {
-    const raw = localStorage.getItem(tileCacheKey(tileKey));
+    const raw = localStorage.getItem(TILE_LOCAL_PREFIX + tileKey);
     if (!raw) return null;
     const { ts, data } = JSON.parse(raw);
-    if (Date.now() - ts > CACHE_TTL_MS) return null;
+    if (Date.now() - ts > TILE_CACHE_TTL_MS) return null;
     return data;
   } catch (_) { return null; }
 }
-
-function saveTileCache(tileKey, data) {
+function saveLocalTile(tileKey, data) {
   try {
-    localStorage.setItem(tileCacheKey(tileKey), JSON.stringify({ ts: Date.now(), data }));
+    localStorage.setItem(TILE_LOCAL_PREFIX + tileKey,
+      JSON.stringify({ ts: Date.now(), data }));
   } catch (_) {}
 }
-
-/* ====================== ОТЗЫВЫ (БЕЗ ФЕЙКА) ====================== */
-function getUserVotes(toiletId) {
+async function loadFBTile(tileKey) {
+  if (!FIREBASE_ENABLED || !fbDb) return null;
   try {
-    const raw = localStorage.getItem(MY_VOTES_KEY + toiletId);
+    const snap = await fbDb.ref('tiles/' + tileKey).once('value');
+    const data = snap.val();
+    if (!data) return null;
+    if (Date.now() - data.ts > TILE_CACHE_TTL_MS) return null;
+    if (!data.toilets) return null;
+    return Object.values(data.toilets);
+  } catch (e) {
+    console.warn('FB tile read failed:', e.message);
+    return null;
+  }
+}
+async function saveFBTile(tileKey, toilets) {
+  if (!FIREBASE_ENABLED || !fbDb || !toilets.length) return;
+  try {
+    const obj = {};
+    for (const t of toilets) {
+      obj[t.id] = {
+        name: t.name || '',
+        address: t.address || '',
+        lat: t.latitude,
+        lng: t.longitude,
+        category: t.category,
+      };
+    }
+    await fbDb.ref('tiles/' + tileKey).update({
+      ts: Date.now(),
+      toilets: obj,
+    });
+  } catch (e) {
+    console.warn('FB tile write failed:', e.message);
+  }
+}
+
+/* ====================== OVERPASS ====================== */
+async function tryFetch(url, query, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'data=' + encodeURIComponent(query),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
+async function fetchOverpass(query) {
+  let lastErr = null;
+  for (const ep of OVERPASS_ENDPOINTS) {
+    try {
+      const data = await tryFetch(ep, query, OVERPASS_TIMEOUT_MS);
+      if (data) return data;
+    } catch (e) { lastErr = e; }
+    try {
+      const prox = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(ep);
+      const data = await tryFetch(prox, query, OVERPASS_TIMEOUT_MS + 3000);
+      if (data) return data;
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('Все зеркала недоступны');
+}
+
+/* ====================== ПАРСИНГ ====================== */
+function determineCategory(tags) {
+  if (tags.amenity === 'toilets' || tags.toilets === 'yes') return 'free';
+  if (tags.railway === 'station' || tags.aeroway === 'aerodrome' || tags.amenity === 'bus_station') return 'transport';
+  if (tags.shop === 'mall' || tags.shop === 'department_store') return 'mall';
+  if (tags.amenity === 'fast_food') return 'fastfood';
+  if (tags.amenity === 'hospital' || tags.amenity === 'clinic') return 'hospital';
+  if (tags.amenity === 'fuel') return 'fuel';
+  if (tags.amenity === 'cafe' || tags.amenity === 'restaurant') return 'cafe';
+  return 'other';
+}
+function osmToToilet(el) {
+  const lat = el.lat ?? el.center?.lat;
+  const lng = el.lon ?? el.center?.lon;
+  if (lat == null || lng == null) return null;
+
+  const tags = el.tags || {};
+  const category = determineCategory(tags);
+  const osmId = `osm_${el.type}_${el.id}`;
+
+  let name = tags['name:ru'] || tags.name;
+  if (!name) {
+    if (category === 'free') name = 'Общественный туалет';
+    else if (category === 'transport') {
+      if (tags.railway === 'station') name = 'Вокзал';
+      else if (tags.aeroway === 'aerodrome') name = 'Аэропорт';
+      else if (tags.amenity === 'bus_station') name = 'Автовокзал';
+      else name = 'Транспорт';
+    }
+    else if (category === 'mall') name = tags.shop === 'department_store' ? 'Универмаг' : 'Торговый центр';
+    else if (category === 'fastfood') name = 'Фастфуд';
+    else if (category === 'hospital') name = tags.amenity === 'clinic' ? 'Поликлиника' : 'Больница';
+    else if (category === 'fuel') name = 'АЗС';
+    else if (category === 'cafe') name = tags.amenity === 'restaurant' ? 'Ресторан' : 'Кафе';
+    else name = 'Место';
+  }
+
+  const address = [tags['addr:street'], tags['addr:housenumber']]
+    .filter(Boolean).join(', ') || 'Адрес не указан';
+
+  return {
+    id: osmId,
+    name, address,
+    latitude: lat, longitude: lng,
+    category,
+    source: 'OSM',
+    access_code: null,
+  };
+}
+function applyToilets(toilets) {
+  let added = 0;
+  for (const t of toilets) {
+    if (!t || !t.id) continue;
+    if (!toiletsById.has(t.id)) {
+      toiletsById.set(t.id, t);
+      added++;
+    }
+  }
+  if (added > 0) scheduleRender();
+  return added;
+}
+
+/* ====================== ЗАГРУЗКА ТАЙЛА ====================== */
+async function loadTile(lat, lng, tileKey, mySeq) {
+  // 1. Локальный кэш — мгновенно
+  const localCached = loadLocalTile(tileKey);
+  if (localCached) {
+    const added = applyToilets(localCached);
+    console.log(`📦 ${tileKey} из localStorage: ${added}`);
+    return { added, from: 'local' };
+  }
+
+  // 2. Firebase shared-кэш — быстро, у всех уже готово
+  const fbCached = await loadFBTile(tileKey);
+  if (fbCached && mySeq === loadSeq) {
+    const toilets = fbCached.map(t => ({
+      id: t.id, name: t.name, address: t.address,
+      latitude: t.lat, longitude: t.lng,
+      category: t.category, source: 'OSM',
+      access_code: null,
+    })).filter(t => t.id);
+    if (toilets.length) {
+      const added = applyToilets(toilets);
+      saveLocalTile(tileKey, toilets);
+      console.log(`🔥 ${tileKey} из Firebase: ${added}`);
+      return { added, from: 'firebase' };
+    }
+  }
+
+  // 3. Загрузка из Overpass
+  const tileToilets = [];
+  let fastAdded = 0;
+
+  try {
+    const data = await fetchOverpass(TILE_FAST_QUERY(lat, lng));
+    if (mySeq !== loadSeq) return { added: 0 };
+    const toilets = (data.elements || []).map(osmToToilet).filter(Boolean);
+    fastAdded = applyToilets(toilets);
+    tileToilets.push(...toilets);
+    if (tileToilets.length) {
+      saveLocalTile(tileKey, tileToilets);
+      saveFBTile(tileKey, tileToilets); // асинхронно, без await
+    }
+    console.log(`🌐 ${tileKey} fast: +${fastAdded}`);
+  } catch (e) {
+    console.warn(`Fast fail ${tileKey}:`, e.message);
+  }
+
+  // 4. Slow — в фоне
+  fetchOverpass(TILE_SLOW_QUERY(lat, lng))
+    .then(data => {
+      if (mySeq !== loadSeq) return;
+      const toilets = (data.elements || []).map(osmToToilet).filter(Boolean);
+      if (toilets.length) {
+        const added = applyToilets(toilets);
+        if (added > 0) {
+          const merged = [...tileToilets, ...toilets];
+          saveLocalTile(tileKey, merged);
+          saveFBTile(tileKey, merged);
+          console.log(`🌐 ${tileKey} slow: +${added}`);
+        }
+      }
+    })
+    .catch(() => {});
+
+  return { added: fastAdded, from: 'osm' };
+}
+
+/* ====================== ЗАГРУЗКА ВИДИМОЙ ОБЛАСТИ ====================== */
+async function loadForCurrentView() {
+  const zoom = map.getZoom();
+  const hint = document.getElementById('zoom-hint');
+
+  if (zoom < MIN_ZOOM_FOR_LOAD) {
+    hint.classList.add('show');
+    hideLoadingBar();
+    return;
+  }
+  hint.classList.remove('show');
+
+  // Радиус тайлов: на большом зуме 3×3, на мелком 1
+  const radius = zoom >= 14 ? 1 : 0;
+  const tiles = getTilesAround(radius);
+  const toLoad = tiles.filter(t => !loadedTiles.has(t.key) && !loadingTiles.has(t.key));
+
+  if (toLoad.length === 0) {
+    console.log('✅ Все тайлы уже загружены');
+    return;
+  }
+
+  for (const t of toLoad) loadingTiles.add(t.key);
+
+  const mySeq = ++loadSeq;
+  showLoadingBar(`Загрузка ${toLoad.length} зон…`);
+
+  const promises = toLoad.map(({ key, lat, lng }) => {
+    const c = tileCenter(lat, lng);
+    return loadTile(c.lat, c.lng, key, mySeq)
+      .catch(() => ({ added: 0 }))
+      .finally(() => {
+        loadingTiles.delete(key);
+        loadedTiles.add(key);
+      });
+  });
+
+  const results = await Promise.allSettled(promises);
+
+  if (mySeq !== loadSeq) return;
+
+  let total = 0;
+  let fromCache = 0;
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value) {
+      total += r.value.added || 0;
+      if (r.value.from === 'local' || r.value.from === 'firebase') fromCache++;
+    }
+  }
+
+  console.log(`✅ Итог: +${total}, всего: ${toiletsById.size}`);
+  scheduleRender();
+
+  if (total > 0) {
+    showLoadingBar(`Найдено: +${total}`, 'count');
+  } else if (fromCache > 0) {
+    showLoadingBar(`Загружено из кэша: ${fromCache} зон`, 'count');
+  } else {
+    showLoadingBar('В этих местах пока ничего нет', 'empty');
+  }
+  setTimeout(hideLoadingBar, 1500);
+}
+
+/* ====================== КАРТА ====================== */
+function initMap() {
+  return new Promise(resolve => {
+    ymaps.ready(() => {
+      map = new ymaps.Map('map', {
+        center: [55.7558, 37.6173],
+        zoom: 4,
+        controls: ['zoomControl'],
+      }, {
+        suppressMapOpenBlock: true,
+        yandexMapDisablePoiInteractivity: true,
+      });
+
+      map.events.add('click', (e) => {
+        if (pickMode) {
+          const coords = e.get('coords');
+          onPickPoint(coords[0], coords[1]);
+          return;
+        }
+        if (Date.now() < suppressMapCloseUntil) return;
+        if (selectedToilet) closeBottomSheet();
+      });
+
+      map.events.add('boundschange', onMapMoved);
+      resolve();
+    });
+  });
+}
+function onMapMoved() {
+  if (pickMode) return;
+  if (isCentering) return;
+  if (!locationDetermined) locationDetermined = true;
+
+  clearTimeout(moveDebounceTimer);
+  moveDebounceTimer = setTimeout(loadForCurrentView, MOVE_DEBOUNCE_MS);
+  clearTimeout(renderDebounceTimer);
+  renderDebounceTimer = setTimeout(scheduleRender, 200);
+}
+
+/* ====================== ИКОНКИ ====================== */
+function getMarkerSvg(color, letter, isAssumed, isUser) {
+  const k = `${color}|${letter}|${isAssumed}|${isUser}`;
+  let svg = svgCache.get(k);
+  if (svg) return svg;
+  const opacity = isAssumed ? '0.85' : '1';
+  const sw = isUser ? '3' : (isAssumed ? '2' : '2.5');
+  const sc = isUser ? '#ffeb3b' : 'white';
+  const fs = isAssumed ? 15 : 14;
+  svg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="46" viewBox="0 0 38 46" opacity="${opacity}">
+      <path d="M19 0 C8.5 0 0 8.5 0 19 C0 33 19 46 19 46 C19 46 38 33 38 19 C38 8.5 29.5 0 19 0 Z"
+            fill="${color}" stroke="${sc}" stroke-width="${sw}"/>
+      <text x="19" y="24" font-size="${fs}" font-weight="bold" text-anchor="middle"
+            fill="white" font-family="Arial, sans-serif">${letter}</text>
+    </svg>`);
+  svgCache.set(k, svg);
+  return svg;
+}
+const USER_SVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
+    <circle cx="15" cy="15" r="10" fill="#2196f3" stroke="white" stroke-width="3"/>
+    <circle cx="15" cy="15" r="4" fill="white"/>
+  </svg>`);
+const PICK_SVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+    <circle cx="20" cy="20" r="14" fill="rgba(36,129,204,0.25)" stroke="#2481cc" stroke-width="3"/>
+    <circle cx="20" cy="20" r="4" fill="#2481cc"/>
+  </svg>`);
+
+/* ====================== РЕНДЕР ====================== */
+let renderScheduled = false;
+function scheduleRender() {
+  if (renderScheduled) return;
+  renderScheduled = true;
+  requestAnimationFrame(() => {
+    renderScheduled = false;
+    renderMarkers();
+  });
+}
+function renderMarkers() {
+  if (userPlacemark) { map.geoObjects.remove(userPlacemark); userPlacemark = null; }
+  if (currentPosition) {
+    userPlacemark = new ymaps.Placemark(
+      [currentPosition.lat, currentPosition.lng], {},
+      {
+        iconLayout: 'default#image',
+        iconImageHref: USER_SVG,
+        iconImageSize: [30, 30], iconImageOffset: [-15, -15],
+        interactive: false,
+      });
+    map.geoObjects.add(userPlacemark);
+  }
+
+  const b = map.getBounds();
+  if (!b) return;
+  const s = Math.min(b[0][0], b[1][0]) - 0.005;
+  const n = Math.max(b[0][0], b[1][0]) + 0.005;
+  const w = Math.min(b[0][1], b[1][1]) - 0.005;
+  const e = Math.max(b[0][1], b[1][1]) + 0.005;
+
+  const wanted = new Map();
+  const sorted = [...toiletsById.values()].sort((a, b2) => {
+    const aU = a.source === 'user' ? -1 : 0;
+    const bU = b2.source === 'user' ? -1 : 0;
+    return aU - bU;
+  });
+
+  for (const t of sorted) {
+    if (!activeCategories.has(t.category)) continue;
+    if (t.latitude < s || t.latitude > n) continue;
+    if (t.longitude < w || t.longitude > e) continue;
+    wanted.set(t.id, t);
+  }
+
+  for (const [id, pm] of currentMarkers) {
+    if (!wanted.has(id)) {
+      map.geoObjects.remove(pm);
+      currentMarkers.delete(id);
+    }
+  }
+
+  for (const [id, t] of wanted) {
+    if (currentMarkers.has(id)) continue;
+    const cat = CATEGORIES[t.category] || CATEGORIES.other;
+    const letter = t.category === 'free' ? 'WC' : cat.emoji;
+    const isUser = t.source === 'user';
+
+    const pm = new ymaps.Placemark(
+      [t.latitude, t.longitude],
+      { hintContent: t.name },
+      {
+        iconLayout: 'default#image',
+        iconImageHref: getMarkerSvg(cat.color, letter, cat.assumed, isUser),
+        iconImageSize: [38, 46],
+        iconImageOffset: [-19, -46],
+      });
+
+    pm.events.add('click', (ev) => {
+      suppressMapCloseUntil = Date.now() + 500;
+      try { if (ev?.originalEvent?.stopPropagation) ev.originalEvent.stopPropagation(); } catch (_) {}
+      haptic();
+      openBottomSheet(t);
+    });
+
+    map.geoObjects.add(pm);
+    currentMarkers.set(id, pm);
+  }
+}
+
+/* ====================== ОТЗЫВЫ ====================== */
+function getUserVotes(id) {
+  try {
+    const raw = localStorage.getItem(MY_VOTES_KEY + id);
     return raw ? JSON.parse(raw) : {};
   } catch (_) { return {}; }
 }
-
-function saveUserVotes(toiletId, votes) {
-  try { localStorage.setItem(MY_VOTES_KEY + toiletId, JSON.stringify(votes)); } catch (_) {}
+function saveUserVotes(id, votes) {
+  try { localStorage.setItem(MY_VOTES_KEY + id, JSON.stringify(votes)); } catch (_) {}
 }
-
-/**
- * Возвращает голоса туалета.
- * Если у туалета есть поле votes (из Firebase) — используем его.
- * Иначе — пустая статистика (без фейка).
- */
 function getStats(toilet) {
   const empty = {};
-  for (const key in REVIEW_TYPES) empty[key] = { yes: 0, no: 0 };
-
+  for (const k in REVIEW_TYPES) empty[k] = { yes: 0, no: 0 };
   if (toilet.votes) {
-    // Копируем из Firebase
-    for (const key in REVIEW_TYPES) {
-      if (toilet.votes[key]) {
-        empty[key] = {
-          yes: toilet.votes[key].yes || 0,
-          no: toilet.votes[key].no || 0,
+    for (const k in REVIEW_TYPES) {
+      if (toilet.votes[k]) {
+        empty[k] = {
+          yes: toilet.votes[k].yes || 0,
+          no: toilet.votes[k].no || 0,
         };
       }
     }
   }
-
-  // Локальный голос текущего пользователя тоже учитываем
   const myVotes = getUserVotes(toilet.id);
-  for (const key in REVIEW_TYPES) {
-    if (myVotes[key] === 'yes') empty[key].yes += 1;
-    if (myVotes[key] === 'no')  empty[key].no  += 1;
+  for (const k in REVIEW_TYPES) {
+    if (myVotes[k] === 'yes') empty[k].yes += 1;
+    if (myVotes[k] === 'no')  empty[k].no  += 1;
   }
-
   return empty;
 }
-
 function isLikelyBroken(toilet) {
   const stats = getStats(toilet);
   const w = stats.works;
@@ -869,103 +853,73 @@ function isLikelyBroken(toilet) {
   if (total < 3) return false;
   return (w.no / total) > 0.6;
 }
-
 function renderReviews(toilet) {
-  const container = document.getElementById('bs-reviews-list');
-  const countEl = document.getElementById('bs-reviews-count');
+  const c = document.getElementById('bs-reviews-list');
+  const cntEl = document.getElementById('bs-reviews-count');
   const stats = getStats(toilet);
   const myVotes = getUserVotes(toilet.id);
 
-  let totalVotes = 0;
-  for (const key in REVIEW_TYPES) totalVotes += stats[key].yes + stats[key].no;
-  countEl.textContent = totalVotes > 0 ? `${totalVotes} голосов` : 'пока никто не голосовал';
+  let total = 0;
+  for (const k in REVIEW_TYPES) total += stats[k].yes + stats[k].no;
+  cntEl.textContent = total > 0 ? `${total} голосов` : 'пока никто не голосовал';
 
-  container.innerHTML = '';
-
+  c.innerHTML = '';
   for (const [key, cfg] of Object.entries(REVIEW_TYPES)) {
     const s = stats[key];
-    const total = s.yes + s.no;
-    const hasVotes = total > 0;
-    const yesPct = hasVotes ? (s.yes / total) * 100 : 0;
+    const t = s.yes + s.no;
+    const hasV = t > 0;
+    const pct = hasV ? (s.yes / t) * 100 : 0;
 
     const item = document.createElement('div');
     item.className = 'review-item';
     item.innerHTML = `
       <div class="review-row">
         <span class="review-label">${cfg.label}</span>
-        <button class="review-btn" data-value="yes">
-          <span>${cfg.yes}</span><span class="cnt">${s.yes}</span>
-        </button>
-        <button class="review-btn" data-value="no">
-          <span>${cfg.no}</span><span class="cnt">${s.no}</span>
-        </button>
+        <button class="review-btn" data-value="yes"><span>${cfg.yes}</span><span class="cnt">${s.yes}</span></button>
+        <button class="review-btn" data-value="no"><span>${cfg.no}</span><span class="cnt">${s.no}</span></button>
       </div>
-      <div class="review-bar">
-        ${hasVotes
-          ? `<div class="review-bar-fill" style="width:${yesPct}%"></div>`
-          : `<div class="review-bar-empty"></div>`}
-      </div>
-    `;
+      <div class="review-bar">${hasV
+        ? `<div class="review-bar-fill" style="width:${pct}%"></div>`
+        : `<div class="review-bar-empty"></div>`}</div>`;
 
-    item.querySelectorAll('.review-btn').forEach((btn) => {
+    item.querySelectorAll('.review-btn').forEach(btn => {
       if (myVotes[key] === btn.dataset.value) btn.classList.add('selected');
       btn.addEventListener('click', (e) => {
         e.stopPropagation(); e.preventDefault();
         handleVote(toilet, key, btn.dataset.value);
       });
-      btn.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+      btn.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
     });
-
-    container.appendChild(item);
+    c.appendChild(item);
   }
 }
-
-async function handleVote(toilet, reviewKey, value) {
+async function handleVote(toilet, key, value) {
   const votes = getUserVotes(toilet.id);
-  const wasVoted = votes[reviewKey];
-
-  // Если голос уже стоит на этой опции — снять нельзя (для честности)
-  if (wasVoted === value) {
-    showToast('Вы уже голосовали так');
-    return;
-  }
-
-  // Сохраняем локально
-  votes[reviewKey] = value;
+  const prev = votes[key];
+  if (prev === value) { showToast('Вы уже голосовали так'); return; }
+  votes[key] = value;
   saveUserVotes(toilet.id, votes);
 
-  // Отправляем в Firebase (если включён и у туалета есть fbid)
+  // Firebase transaction — честная синхронизация
   if (FIREBASE_ENABLED && fbDb && toilet.fbid) {
     try {
-      const votesRef = fbDb.ref(`toilets/${toilet.fbid}/votes/${reviewKey}`);
-      await votesRef.transaction((current) => {
-        if (!current) current = { yes: 0, no: 0 };
-        // Откатываем предыдущий голос, если был
-        if (wasVoted === 'yes' && current.yes > 0) current.yes--;
-        if (wasVoted === 'no' && current.no > 0) current.no--;
-        // Ставим новый
-        if (value === 'yes') current.yes++;
-        if (value === 'no') current.no++;
-        return current;
-      });
-
-      // Обновляем локально объект для немедленной отрисовки
-      if (!toilet.votes) toilet.votes = {};
-      if (!toilet.votes[reviewKey]) toilet.votes[reviewKey] = { yes: 0, no: 0 };
-    } catch (e) {
-      console.warn('Firebase vote failed:', e);
-    }
+      await fbDb.ref(`toilets/${toilet.fbid}/votes/${key}`)
+        .transaction(cur => {
+          if (!cur) cur = { yes: 0, no: 0 };
+          if (prev === 'yes' && cur.yes > 0) cur.yes--;
+          if (prev === 'no' && cur.no > 0) cur.no--;
+          if (value === 'yes') cur.yes++;
+          if (value === 'no') cur.no++;
+          return cur;
+        });
+    } catch (e) { console.warn('Vote FB failed:', e); }
   }
 
   haptic('medium');
   renderReviews(toilet);
   updateNotWorkingNote();
-
-  const cfg = REVIEW_TYPES[reviewKey];
-  const label = value === 'yes' ? cfg.yes : cfg.no;
-  showToast(`Спасибо! Отмечено: ${label}`);
+  showToast(`Спасибо! Отмечено: ${value === 'yes' ? REVIEW_TYPES[key].yes : REVIEW_TYPES[key].no}`);
 }
-
 function updateNotWorkingNote() {
   const note = document.getElementById('bs-not-working-note');
   if (!selectedToilet) { note.classList.add('hidden'); return; }
@@ -998,434 +952,10 @@ function getUserPosition() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject({ code: 0 });
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      (err) => reject(err),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-    );
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      err => reject(err),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
   });
-}
-
-/* ====================== OVERPASS ====================== */
-async function tryOverpassFetch(url, query, timeoutMs) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'data=' + encodeURIComponent(query),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.json();
-  } catch (e) {
-    clearTimeout(timeoutId);
-    throw e;
-  }
-}
-
-async function fetchOverpass(query) {
-  let lastError = null;
-  for (const endpoint of OVERPASS_ENDPOINTS) {
-    try {
-      const data = await tryOverpassFetch(endpoint, query, OVERPASS_TIMEOUT_MS);
-      if (data) return data;
-    } catch (e) { lastError = e; }
-
-    try {
-      const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(endpoint);
-      const data = await tryOverpassFetch(proxied, query, OVERPASS_TIMEOUT_MS + 2500);
-      if (data) return data;
-    } catch (e) { lastError = e; }
-  }
-  throw lastError || new Error('Все зеркала недоступны');
-}
-
-/* ====================== ПАРСИНГ ====================== */
-function osmToToilet(el, category) {
-  const lat = el.lat ?? el.center?.lat;
-  const lng = el.lon ?? el.center?.lon;
-  if (lat == null || lng == null) return null;
-
-  const tags = el.tags || {};
-  const osmId = `osm_${category}_${el.type}_${el.id}`;
-
-  let name = tags['name:ru'] || tags.name;
-  if (!name) {
-    if (category === 'free') name = 'Общественный туалет';
-    else if (category === 'transport') {
-      if (tags.railway === 'station') name = 'Вокзал';
-      else if (tags.aeroway === 'aerodrome') name = 'Аэропорт';
-      else name = 'Транспорт';
-    }
-    else if (category === 'mall') name = 'Торговый центр';
-    else if (category === 'fastfood') name = 'Фастфуд';
-    else if (category === 'hospital') name = tags.amenity === 'clinic' ? 'Поликлиника' : 'Больница';
-    else if (category === 'fuel') name = 'АЗС';
-    else if (category === 'cafe') name = tags.amenity === 'restaurant' ? 'Ресторан' : 'Кафе';
-    else name = 'Место';
-  }
-
-  const address = [tags['addr:street'], tags['addr:housenumber']]
-    .filter(Boolean).join(', ') || 'Адрес не указан';
-
-  return {
-    id: osmId,
-    name, address,
-    latitude: lat, longitude: lng,
-    category,
-    source: 'OSM',
-    access_code: localStorage.getItem(STORAGE_PREFIX + osmId) || null,
-  };
-}
-
-/* ====================== КАРТА ====================== */
-function initMap() {
-  return new Promise((resolve) => {
-    ymaps.ready(() => {
-      map = new ymaps.Map('map', {
-        center: [0, 0],
-        zoom: 3,
-        controls: ['zoomControl'],
-      }, {
-        suppressMapOpenBlock: true,
-        yandexMapDisablePoiInteractivity: true,
-      });
-
-      map.events.add('click', (e) => {
-        if (pickMode) {
-          const coords = e.get('coords');
-          onPickPoint(coords[0], coords[1]);
-          return;
-        }
-        if (Date.now() < suppressMapCloseUntil) return;
-        if (selectedToilet) closeBottomSheet();
-      });
-
-      map.events.add('boundschange', onMapMoved);
-
-      resolve();
-    });
-  });
-}
-
-function onMapMoved() {
-  if (pickMode) return;
-  if (isCentering) return;
-
-  if (!locationDetermined) {
-    locationDetermined = true;
-  }
-
-  clearTimeout(moveDebounceTimer);
-  moveDebounceTimer = setTimeout(loadForCurrentView, MOVE_DEBOUNCE_MS);
-
-  clearTimeout(renderDebounceTimer);
-  renderDebounceTimer = setTimeout(scheduleRender, 200);
-}
-
-/* ====================== ЗАГРУЗКА ПО ТАЙЛАМ ====================== */
-async function loadForCurrentView() {
-  const zoom = map.getZoom();
-  const hint = document.getElementById('zoom-hint');
-
-  if (zoom < MIN_ZOOM_FOR_LOAD) {
-    hint.classList.add('show');
-    hideLoadingBar();
-    return;
-  }
-  hint.classList.remove('show');
-
-  // Получаем ВСЕ тайлы, которые сейчас видны
-  const tiles = getVisibleTiles();
-  // Исключаем уже загруженные
-  const tilesToLoad = tiles.filter(t => !loadedTiles.has(t.key));
-
-  if (tilesToLoad.length === 0) {
-    console.log('✅ Все тайлы в зоне видны уже загружены');
-    return;
-  }
-
-  console.log(`📥 Загружаем ${tilesToLoad.length} тайлов`);
-
-  const mySeq = ++loadSequence;
-  showLoadingBar(`Загрузка ${tilesToLoad.length} зон…`);
-
-  // Помечаем все тайлы как "загружаются" сразу, чтобы не запустить повторно
-  for (const t of tilesToLoad) loadedTiles.add(t.key);
-
-  // Запускаем загрузку всех тайлов ПАРАЛЛЕЛЬНО
-  // Каждый тайл = центр квадрата
-  const promises = tilesToLoad.map(({ key, lat, lng }) => {
-    const centerLat = lat * TILE_SIZE_DEG + TILE_SIZE_DEG / 2;
-    const centerLng = lng * TILE_SIZE_DEG + TILE_SIZE_DEG / 2;
-
-    // Сначала пробуем кэш тайла
-    const cached = loadTileCache(key);
-    if (cached) {
-      let added = 0;
-      for (const t of cached) {
-        if (!toiletsById.has(t.id)) {
-          toiletsById.set(t.id, t);
-          added++;
-        }
-      }
-      if (added > 0) scheduleRender();
-      return Promise.resolve({ key, added, fromCache: true });
-    }
-
-    // Иначе — грузим
-    return loadTile(centerLat, centerLng, key, mySeq);
-  });
-
-  const results = await Promise.allSettled(promises);
-  if (mySeq !== loadSequence) return;
-
-  let total = 0;
-  for (const r of results) {
-    if (r.status === 'fulfilled' && r.value) total += r.value.added || 0;
-  }
-
-  console.log(`✅ Итог: +${total}, всего: ${toiletsById.size}`);
-  scheduleRender();
-
-  if (total > 0) {
-    showLoadingBar(`Найдено: +${total}`, 'count');
-  } else {
-    showLoadingBar('В этих местах пока ничего нет', 'empty');
-  }
-  setTimeout(hideLoadingBar, 1500);
-}
-
-async function loadTile(lat, lng, tileKey, mySeq) {
-  let totalAdded = 0;
-
-  // FAST-запросы параллельно
-  const fastTasks = FAST_QUERIES.map(({ cat, q }) =>
-    fetchOverpass(q(lat, lng))
-      .then(data => ({ cat, elements: data.elements || [] }))
-      .catch(() => ({ cat, elements: [] }))
-  );
-
-  const fastResults = await Promise.allSettled(fastTasks);
-  if (mySeq !== loadSequence) return { added: 0 };
-
-  const tileToilets = [];
-
-  for (const r of fastResults) {
-    if (r.status !== 'fulfilled') continue;
-    const { cat, elements } = r.value;
-    for (const el of elements) {
-      const t = osmToToilet(el, cat);
-      if (t && !toiletsById.has(t.id)) {
-        toiletsById.set(t.id, t);
-        tileToilets.push(t);
-        totalAdded++;
-      }
-    }
-  }
-
-  if (totalAdded > 0) {
-    scheduleRender();
-    saveTileCache(tileKey, tileToilets);
-  }
-
-  // SLOW-запросы — в фоне, не блокируем
-  SLOW_QUERIES.forEach(({ cat, q }) => {
-    fetchOverpass(q(lat, lng))
-      .then(data => {
-        if (mySeq !== loadSequence) return;
-        const elements = data.elements || [];
-        const moreToilets = [];
-        let moreAdded = 0;
-        for (const el of elements) {
-          const t = osmToToilet(el, cat);
-          if (t && !toiletsById.has(t.id)) {
-            toiletsById.set(t.id, t);
-            moreToilets.push(t);
-            moreAdded++;
-          }
-        }
-        if (moreAdded > 0) {
-          console.log(`+${moreAdded} из ${cat} (tile ${tileKey})`);
-          scheduleRender();
-          // Обновляем кэш тайла
-          const cached = loadTileCache(tileKey) || [];
-          saveTileCache(tileKey, [...cached, ...moreToilets]);
-        }
-      })
-      .catch(() => {});
-  });
-
-  return { added: totalAdded };
-}
-
-/* ====================== ИКОНКИ ====================== */
-function getMarkerSvg(color, letter, isAssumed, isUser) {
-  const cacheKey = `${color}|${letter}|${isAssumed}|${isUser}`;
-  let svg = svgCache.get(cacheKey);
-  if (svg) return svg;
-
-  const opacity = isAssumed ? '0.85' : '1';
-  const strokeWidth = isUser ? '3' : (isAssumed ? '2' : '2.5');
-  const strokeColor = isUser ? '#ffeb3b' : 'white';
-  const fontSize = isAssumed ? 15 : 14;
-  svg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="46" viewBox="0 0 38 46" opacity="${opacity}">
-      <path d="M19 0 C8.5 0 0 8.5 0 19 C0 33 19 46 19 46 C19 46 38 33 38 19 C38 8.5 29.5 0 19 0 Z"
-            fill="${color}" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>
-      <text x="19" y="24" font-size="${fontSize}" font-weight="bold" text-anchor="middle"
-            fill="white" font-family="Arial, sans-serif">${letter}</text>
-    </svg>`
-  );
-  svgCache.set(cacheKey, svg);
-  return svg;
-}
-
-const USER_SVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
-    <circle cx="15" cy="15" r="10" fill="#2196f3" stroke="white" stroke-width="3"/>
-    <circle cx="15" cy="15" r="4" fill="white"/>
-  </svg>`
-);
-
-const PICK_SVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-    <circle cx="20" cy="20" r="14" fill="rgba(36,129,204,0.25)" stroke="#2481cc" stroke-width="3"/>
-    <circle cx="20" cy="20" r="4" fill="#2481cc"/>
-  </svg>`
-);
-
-/* ====================== РЕНДЕР ====================== */
-let renderScheduled = false;
-function scheduleRender() {
-  if (renderScheduled) return;
-  renderScheduled = true;
-  requestAnimationFrame(() => {
-    renderScheduled = false;
-    renderMarkers();
-  });
-}
-
-function renderMarkers() {
-  if (userPlacemark) { map.geoObjects.remove(userPlacemark); userPlacemark = null; }
-  if (currentPosition) {
-    userPlacemark = new ymaps.Placemark(
-      [currentPosition.lat, currentPosition.lng], {},
-      {
-        iconLayout: 'default#image',
-        iconImageHref: USER_SVG,
-        iconImageSize: [30, 30], iconImageOffset: [-15, -15],
-        interactive: false,
-      }
-    );
-    map.geoObjects.add(userPlacemark);
-  }
-
-  const bounds = map.getBounds();
-  if (!bounds) return;
-  const south = Math.min(bounds[0][0], bounds[1][0]);
-  const north = Math.max(bounds[0][0], bounds[1][0]);
-  const west  = Math.min(bounds[0][1], bounds[1][1]);
-  const east  = Math.max(bounds[0][1], bounds[1][1]);
-
-  const dLat = (north - south) * 0.05;
-  const dLng = (east - west) * 0.05;
-  const vb = { south: south - dLat, north: north + dLat, west: west - dLng, east: east + dLng };
-
-  const wanted = new Map();
-  const allToilets = [...toiletsById.values(), ...userToiletsById.values()];
-  const sorted = allToilets.sort((a, b) => {
-    const aU = a.source === 'user' ? -1 : 0;
-    const bU = b.source === 'user' ? -1 : 0;
-    const aA = CATEGORIES[a.category]?.assumed ? 1 : 0;
-    const bA = CATEGORIES[b.category]?.assumed ? 1 : 0;
-    return (aU - bU) || (aA - bA);
-  });
-
-  for (const t of sorted) {
-    if (!activeCategories.has(t.category)) continue;
-    if (t.latitude < vb.south || t.latitude > vb.north) continue;
-    if (t.longitude < vb.west || t.longitude > vb.east) continue;
-    wanted.set(t.id, t);
-  }
-
-  for (const [id, pm] of currentMarkers) {
-    if (!wanted.has(id)) {
-      map.geoObjects.remove(pm);
-      currentMarkers.delete(id);
-    }
-  }
-
-  for (const [id, t] of wanted) {
-    if (currentMarkers.has(id)) continue;
-
-    const cat = CATEGORIES[t.category] || CATEGORIES.other;
-    const letter = t.category === 'free' ? 'WC' : cat.emoji;
-    const isUser = t.source === 'user';
-
-    const placemark = new ymaps.Placemark(
-      [t.latitude, t.longitude],
-      { hintContent: t.name },
-      {
-        iconLayout: 'default#image',
-        iconImageHref: getMarkerSvg(cat.color, letter, cat.assumed, isUser),
-        iconImageSize: [38, 46],
-        iconImageOffset: [-19, -46],
-      }
-    );
-
-    placemark.events.add('click', (e) => {
-      suppressMapCloseUntil = Date.now() + 500;
-      try { if (e?.originalEvent?.stopPropagation) e.originalEvent.stopPropagation(); } catch (_) {}
-      haptic();
-      openBottomSheet(t);
-    });
-
-    map.geoObjects.add(placemark);
-    currentMarkers.set(id, placemark);
-  }
-}
-
-/* ====================== SOS ====================== */
-function openRouteTo(lat, lng) {
-  const url = `https://yandex.ru/maps/?rtext=~${lat},${lng}&rtt=pd`;
-  if (tg?.openLink) tg.openLink(url, { try_instant_view: false });
-  else window.open(url, '_blank');
-}
-
-function findNearestWorkingToilet() {
-  if (!currentPosition) { showToast('Геопозиция не определена'); return; }
-
-  const all = [
-    ...userToiletsById.values(),
-    ...[...toiletsById.values()],
-  ].filter((t) => activeCategories.has(t.category));
-
-  if (!all.length) { showToast('Поблизости ничего не найдено'); return; }
-
-  const notBroken = all.filter((t) => !isLikelyBroken(t));
-  const pool = notBroken.length ? notBroken : all;
-  const userAdded = pool.filter((t) => t.source === 'user');
-  const confirmed = pool.filter((t) => !CATEGORIES[t.category]?.assumed && t.source !== 'user');
-  const candidates = userAdded.length ? userAdded : (confirmed.length ? confirmed : pool);
-
-  let nearest = candidates[0];
-  let minDist = Infinity;
-  for (const t of candidates) {
-    const d = ymaps.coordSystem.geo.getDistance(
-      [currentPosition.lat, currentPosition.lng],
-      [t.latitude, t.longitude]
-    );
-    if (d < minDist) { minDist = d; nearest = t; }
-  }
-
-  haptic('medium');
-  const meters = Math.round(minDist);
-  const distStr = meters < 1000 ? `${meters} м` : `${(meters / 1000).toFixed(1)} км`;
-  showToast(`Ближайший: ${distStr}. Открываю маршрут…`);
-  setTimeout(() => openRouteTo(nearest.latitude, nearest.longitude), 400);
 }
 
 /* ====================== BOTTOM SHEET ====================== */
@@ -1462,38 +992,65 @@ function openBottomSheet(toilet) {
   sheet.scrollTop = 0;
   requestAnimationFrame(() => sheet.classList.add('open'));
 }
-
 function updateCodeDisplay() {
   const code = selectedToilet?.access_code;
-  const display = document.getElementById('bs-code-display');
-  const toggle = document.getElementById('bs-toggle-code');
-  const editBtn = document.getElementById('bs-edit-code');
-
+  const d = document.getElementById('bs-code-display');
+  const t = document.getElementById('bs-toggle-code');
+  const e = document.getElementById('bs-edit-code');
   if (code) {
-    display.classList.remove('empty');
-    display.textContent = '••••';
-    display.dataset.visible = 'false';
-    display.dataset.code = code;
-    toggle.style.display = 'block';
-    toggle.textContent = 'Показать код';
-    editBtn.textContent = '✏️ Изменить код';
+    d.classList.remove('empty');
+    d.textContent = '••••';
+    d.dataset.visible = 'false';
+    d.dataset.code = code;
+    t.style.display = 'block';
+    t.textContent = 'Показать код';
+    e.textContent = '✏️ Изменить код';
   } else {
-    display.classList.add('empty');
-    display.textContent = 'Кода пока нет — добавьте первым!';
-    display.dataset.visible = 'false';
-    delete display.dataset.code;
-    toggle.style.display = 'none';
-    editBtn.textContent = '➕ Добавить код';
+    d.classList.add('empty');
+    d.textContent = 'Кода пока нет — добавьте первым!';
+    d.dataset.visible = 'false';
+    delete d.dataset.code;
+    t.style.display = 'none';
+    e.textContent = '➕ Добавить код';
   }
 }
-
 function closeBottomSheet() {
-  const sheet = document.getElementById('bottom-sheet');
-  sheet.classList.remove('open');
-  setTimeout(() => { sheet.classList.add('hidden'); selectedToilet = null; }, 300);
+  const s = document.getElementById('bottom-sheet');
+  s.classList.remove('open');
+  setTimeout(() => { s.classList.add('hidden'); selectedToilet = null; }, 300);
 }
 
-/* ====================== ДОБАВЛЕНИЕ ТУАЛЕТА ====================== */
+/* ====================== SOS ====================== */
+function openRouteTo(lat, lng) {
+  const url = `https://yandex.ru/maps/?rtext=~${lat},${lng}&rtt=pd`;
+  if (tg?.openLink) tg.openLink(url, { try_instant_view: false });
+  else window.open(url, '_blank');
+}
+function findNearestToilet() {
+  if (!currentPosition) { showToast('Геопозиция не определена'); return; }
+  const all = [...toiletsById.values()].filter(t => activeCategories.has(t.category));
+  if (!all.length) { showToast('Поблизости ничего не найдено'); return; }
+
+  const notBroken = all.filter(t => !isLikelyBroken(t));
+  const pool = notBroken.length ? notBroken : all;
+  const userAdded = pool.filter(t => t.source === 'user');
+  const conf = pool.filter(t => !CATEGORIES[t.category]?.assumed && t.source !== 'user');
+  const cand = userAdded.length ? userAdded : (conf.length ? conf : pool);
+
+  let nearest = cand[0], minD = Infinity;
+  for (const t of cand) {
+    const d = ymaps.coordSystem.geo.getDistance(
+      [currentPosition.lat, currentPosition.lng],
+      [t.latitude, t.longitude]);
+    if (d < minD) { minD = d; nearest = t; }
+  }
+  haptic('medium');
+  const m = Math.round(minD);
+  showToast(`Ближайший: ${m < 1000 ? m + ' м' : (m/1000).toFixed(1) + ' км'}. Маршрут…`);
+  setTimeout(() => openRouteTo(nearest.latitude, nearest.longitude), 400);
+}
+
+/* ====================== ДОБАВЛЕНИЕ ====================== */
 function openAddDialog() {
   addingToilet = { name: '', category: 'free', address: '', code: '', lat: null, lng: null };
   document.getElementById('add-name').value = '';
@@ -1504,52 +1061,46 @@ function openAddDialog() {
   document.getElementById('add-dialog').classList.remove('hidden');
   haptic();
 }
-
 function renderAddCats() {
   const el = document.getElementById('add-cats');
   el.innerHTML = '';
   for (const [key, cat] of Object.entries(CATEGORIES)) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'cat-pick' + (key === addingToilet.category ? ' selected' : '');
-    btn.textContent = cat.emoji + ' ' + cat.label;
-    btn.addEventListener('click', (e) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cat-pick' + (key === addingToilet.category ? ' selected' : '');
+    b.textContent = cat.emoji + ' ' + cat.label;
+    b.addEventListener('click', (e) => {
       e.stopPropagation();
       addingToilet.category = key;
       renderAddCats();
       haptic();
     });
-    el.appendChild(btn);
+    el.appendChild(b);
   }
 }
-
 function closeAddDialog() {
   document.getElementById('add-dialog').classList.add('hidden');
   addingToilet = null;
   exitPickMode();
 }
-
 function startPickMode() {
   if (!addingToilet) return;
   pickMode = true;
   document.getElementById('add-dialog').classList.add('hidden');
   document.getElementById('pick-hint').classList.add('show');
   haptic();
-
   if (tempPickMarker) map.geoObjects.remove(tempPickMarker);
-  const center = map.getCenter();
+  const c = map.getCenter();
   tempPickMarker = new ymaps.Placemark(
-    [center[0], center[1]], {},
+    [c[0], c[1]], {},
     {
       iconLayout: 'default#image',
       iconImageHref: PICK_SVG,
       iconImageSize: [40, 40], iconImageOffset: [-20, -20],
       interactive: false,
-    }
-  );
+    });
   map.geoObjects.add(tempPickMarker);
 }
-
 function exitPickMode() {
   pickMode = false;
   document.getElementById('pick-hint').classList.remove('show');
@@ -1558,7 +1109,6 @@ function exitPickMode() {
     tempPickMarker = null;
   }
 }
-
 function onPickPoint(lat, lng) {
   if (!addingToilet) return;
   addingToilet.lat = lat;
@@ -1568,10 +1118,8 @@ function onPickPoint(lat, lng) {
   document.getElementById('add-dialog').classList.remove('hidden');
   haptic('medium');
 }
-
 async function saveNewToilet() {
   if (!addingToilet) return;
-
   const name = document.getElementById('add-name').value.trim();
   const address = document.getElementById('add-address').value.trim();
   const code = document.getElementById('add-code').value.trim();
@@ -1582,9 +1130,9 @@ async function saveNewToilet() {
     return;
   }
 
-  const id = makeId();
+  const fbId = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
   const toilet = {
-    id,
+    id: fbId,
     name,
     address: address || 'Адрес не указан',
     latitude: addingToilet.lat,
@@ -1593,13 +1141,12 @@ async function saveNewToilet() {
     source: 'user',
     access_code: code || null,
     votes: null,
+    fbid: fbId,
   };
 
-  // Отправляем в Firebase — тогда его увидят ВСЕ
-  let savedToFirebase = false;
+  let saved = false;
   if (FIREBASE_ENABLED && fbDb && fbUid) {
     try {
-      const fbId = 'u_' + id;
       await fbDb.ref('toilets/' + fbId).set({
         name: toilet.name,
         address: toilet.address,
@@ -1611,39 +1158,26 @@ async function saveNewToilet() {
         createdAt: Date.now(),
         createdBy: fbUid,
       });
-      toilet.id = fbId;
-      toilet.fbid = fbId;
-      savedToFirebase = true;
-      console.log('🔥 Туалет сохранён в Firebase');
-    } catch (e) {
-      console.warn('Firebase write failed:', e);
-    }
+      saved = true;
+      console.log('🔥 Туалет в Firebase');
+    } catch (e) { console.warn('FB write failed:', e); }
   }
 
-  // Всегда сохраняем локально
-  if (!savedToFirebase) {
-    userToiletsById.set(id, toilet);
-    saveUserToilets();
-  }
-  toiletsById.set(toilet.id, toilet);
-
-  if (code) localStorage.setItem(STORAGE_PREFIX + toilet.id, code);
+  toiletsById.set(fbId, toilet);
+  if (code) localStorage.setItem(STORAGE_PREFIX + fbId, code);
 
   closeAddDialog();
   scheduleRender();
 
-  showToast(savedToFirebase
-    ? 'Туалет добавлен! Его увидят все пользователи'
-    : 'Туалет добавлен локально'
-  );
+  showToast(saved ? 'Туалет добавлен! Виден всем' : 'Туалет добавлен локально');
 
   map.setCenter([toilet.latitude, toilet.longitude], 17, { duration: 500 });
   setTimeout(() => openBottomSheet(toilet), 700);
 }
 
 /* ====================== ОБРАБОТЧИКИ ====================== */
-document.getElementById('bottom-sheet').addEventListener('click', (e) => e.stopPropagation());
-document.getElementById('bottom-sheet').addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+document.getElementById('bottom-sheet').addEventListener('click', e => e.stopPropagation());
+document.getElementById('bottom-sheet').addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
 
 document.getElementById('bs-toggle-code').addEventListener('click', (e) => {
   e.stopPropagation();
@@ -1657,78 +1191,51 @@ document.getElementById('bs-toggle-code').addEventListener('click', (e) => {
   }
   haptic();
 });
-
 document.getElementById('bs-edit-code').addEventListener('click', (e) => {
   e.stopPropagation();
   document.getElementById('edit-input').value = selectedToilet?.access_code || '';
   document.getElementById('edit-dialog').classList.remove('hidden');
   haptic();
 });
-
 document.getElementById('edit-cancel').addEventListener('click', () => {
   document.getElementById('edit-dialog').classList.add('hidden');
 });
-
 document.getElementById('edit-save').addEventListener('click', async () => {
   const input = document.getElementById('edit-input');
   const newCode = input.value.trim();
   if (!newCode || !selectedToilet) return;
-
   localStorage.setItem(STORAGE_PREFIX + selectedToilet.id, newCode);
   selectedToilet.access_code = newCode;
-
   if (FIREBASE_ENABLED && fbDb && selectedToilet.fbid) {
     try {
       await fbDb.ref('toilets/' + selectedToilet.fbid + '/code').set(newCode);
-    } catch (e) {
-      console.warn('Firebase code update failed:', e);
-    }
-  } else {
-    const t = userToiletsById.get(selectedToilet.id);
-    if (t) { t.access_code = newCode; saveUserToilets(); }
+    } catch (e) { console.warn('Code FB update failed:', e); }
   }
-
   document.getElementById('edit-dialog').classList.add('hidden');
   updateCodeDisplay();
   showToast('Код сохранён!');
   haptic();
 });
-
 document.getElementById('bs-route-btn').addEventListener('click', (e) => {
   e.stopPropagation();
   if (!selectedToilet) return;
   haptic('medium');
   openRouteTo(selectedToilet.latitude, selectedToilet.longitude);
 });
-
-document.getElementById('sos-btn').addEventListener('click', findNearestWorkingToilet);
+document.getElementById('sos-btn').addEventListener('click', findNearestToilet);
 document.getElementById('add-btn').addEventListener('click', openAddDialog);
 
 document.getElementById('locate-btn').addEventListener('click', async () => {
   const btn = document.getElementById('locate-btn');
   btn.classList.add('loading');
   haptic();
-
   try {
     const pos = await getUserPosition();
     currentPosition = pos;
-
     isCentering = true;
-    map.setCenter([pos.lat, pos.lng], 16, {
-      duration: 600, timingFunction: 'ease-in-out',
-    });
-    setTimeout(() => { isCentering = false; }, 700);
-
+    map.setCenter([pos.lat, pos.lng], 15, { duration: 600, timingFunction: 'ease-in-out' });
+    setTimeout(() => { isCentering = false; loadForCurrentView(); }, 700);
     scheduleRender();
-
-    if (!locationDetermined) {
-      locationDetermined = true;
-      loadForCurrentView();
-    } else {
-      // Просто триггерим проверку новых тайлов
-      loadForCurrentView();
-    }
-
     showToast('Вы здесь');
     haptic('medium');
   } catch (e) {
@@ -1739,21 +1246,19 @@ document.getElementById('locate-btn').addEventListener('click', async () => {
     btn.classList.remove('loading');
   }
 });
-
 document.getElementById('add-cancel').addEventListener('click', closeAddDialog);
 document.getElementById('add-save').addEventListener('click', saveNewToilet);
 document.getElementById('add-pick-on-map').addEventListener('click', (e) => {
   e.stopPropagation();
   startPickMode();
 });
-
 document.getElementById('pick-cancel').addEventListener('click', (e) => {
   e.stopPropagation();
   exitPickMode();
   document.getElementById('add-dialog').classList.remove('hidden');
 });
 
-/* ====================== TOAST ====================== */
+/* ====================== TOAST / LOADER ====================== */
 let toastTimer;
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -1762,43 +1267,18 @@ function showToast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
 }
-
-/* ====================== ИНДИКАТОР ====================== */
 function showLoadingBar(text, mode = '') {
   const bar = document.getElementById('loading-bar');
   const span = document.getElementById('loading-text');
-  const spinner = bar.querySelector('.mini-spinner');
+  const sp = bar.querySelector('.mini-spinner');
   span.textContent = text;
   bar.classList.remove('count', 'empty');
   if (mode) bar.classList.add(mode);
-  spinner.style.display = (mode === 'count' || mode === 'empty') ? 'none' : 'block';
+  sp.style.display = (mode === 'count' || mode === 'empty') ? 'none' : 'block';
   bar.classList.add('show');
 }
-function hideLoadingBar() {
-  document.getElementById('loading-bar').classList.remove('show');
-}
-
-/* ====================== СВАЙП ====================== */
-(() => {
-  const sheet = document.getElementById('bottom-sheet');
-  const handle = sheet.querySelector('.drag-handle');
-  let startY = null;
-  handle.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
-  handle.addEventListener('touchmove', (e) => {
-    if (startY === null) return;
-    const dy = e.touches[0].clientY - startY;
-    if (dy > 0) sheet.style.transform = `translateY(${dy}px)`;
-  }, { passive: true });
-  handle.addEventListener('touchend', (e) => {
-    const dy = e.changedTouches[0].clientY - startY;
-    sheet.style.transform = '';
-    if (dy > 80) closeBottomSheet();
-    startY = null;
-  });
-})();
-
-/* ====================== СТАРТ ====================== */
-function updateLoader(text) { document.getElementById('loader-text').textContent = text; }
+function hideLoadingBar() { document.getElementById('loading-bar').classList.remove('show'); }
+function updateLoader(t) { document.getElementById('loader-text').textContent = t; }
 function hideLoader() {
   const l = document.getElementById('loader');
   if (!l) return;
@@ -1806,40 +1286,52 @@ function hideLoader() {
   setTimeout(() => l.remove(), 400);
 }
 
+/* ====================== СВАЙП ====================== */
+(() => {
+  const s = document.getElementById('bottom-sheet');
+  const h = s.querySelector('.drag-handle');
+  let startY = null;
+  h.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, { passive: true });
+  h.addEventListener('touchmove', e => {
+    if (startY === null) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 0) s.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  h.addEventListener('touchend', e => {
+    const dy = e.changedTouches[0].clientY - startY;
+    s.style.transform = '';
+    if (dy > 80) closeBottomSheet();
+    startY = null;
+  });
+})();
+
+/* ====================== СТАРТ ====================== */
 async function init() {
   initTelegram();
   renderFilters();
-  loadUserToilets();
 
   updateLoader('Загружаем карту…');
   await initMap();
 
-  // Firebase — не блокирует, грузится в фоне
-  initFirebase().catch(e => console.warn('Firebase init error:', e));
+  // Firebase — в фоне
+  initFirebase().catch(e => console.warn('FB init error:', e));
 
   updateLoader('Определяем вашу геопозицию…');
-
   let pos = null;
-  try {
-    pos = await getUserPosition();
-  } catch (e) {
-    console.warn('Геолокация недоступна');
-  }
+  try { pos = await getUserPosition(); }
+  catch (e) { console.warn('Геолокация недоступна'); }
 
   hideLoader();
 
   if (pos) {
     currentPosition = pos;
-
     isCentering = true;
     map.setCenter([pos.lat, pos.lng], 15, { duration: 0 });
-
     setTimeout(() => {
       isCentering = false;
       locationDetermined = true;
       loadForCurrentView();
-    }, 100);
-
+    }, 150);
     scheduleRender();
   } else {
     locationDetermined = false;
