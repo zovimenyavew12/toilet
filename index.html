@@ -1280,7 +1280,7 @@ function renderReviews(toilet) {
       </div>
       <div class="review-bar">${hasV
         ? `<div class="review-bar-fill" style="width:${pct}%"></div><div class="review-bar-rest"></div>`
-        : `<div class="review-bar-empty"></div>`}</div>
+        : `<div class="review-bar-empty"></div>`}</div>`;
 
     item.querySelectorAll('.review-btn').forEach(btn => {
       if (myVotes[key] === btn.dataset.value) btn.classList.add('selected');
