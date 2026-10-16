@@ -79,8 +79,23 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
 .review-btn.selected { border-color: var(--tg-button); background: color-mix(in srgb, var(--tg-button) 18%, transparent); color: var(--tg-button); }
 .review-btn .cnt { font-weight: 700; opacity: 0.65; font-size: 11px; }
 .review-bar { height: 4px; background: var(--tg-secondary-bg); border-radius: 2px; overflow: hidden; display: flex; }
-.review-bar-fill { height: 100%; background: var(--positive); transition: width 0.35s ease; }
-.review-bar-empty { height: 100%; width: 100%; background: var(--tg-secondary-bg); }
+.review-bar-fill {
+  height: 100%;
+  background: var(--positive);
+  transition: width 0.35s ease;
+  border-radius: 2px 0 0 2px;
+}
+.review-bar-rest {
+  flex: 1;
+  background: var(--negative);
+  border-radius: 0 2px 2px 0;
+}
+.review-bar-empty {
+  height: 100%;
+  width: 100%;
+  background: var(--tg-secondary-bg);
+  border-radius: 2px;
+}
 .code-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .code-label { font-weight: 600; font-size: 15px; }
 #bs-toggle-code { background: none; border: none; color: var(--tg-button); font-size: 14px; font-weight: 600; cursor: pointer; padding: 6px 8px; font-family: inherit; }
@@ -674,13 +689,43 @@ async function loadPrecomputedForCenter() {
       added++;
     }
     console.log(`✅ Precomputed ${nearest.name}: +${added} туалетов`);
-    if (added > 0) scheduleRender();
+    // 🔑 Перечитываем osm_data — иначе голоса других пользователей не покажутся
+    if (added > 0) {
+      await applyOsmDataToToilets();
+      scheduleRender();
+    }
     return added;
   } catch (e) {
     console.warn('Precomputed center load failed:', e.message);
     return 0;
   }
 }
+
+// 🔑 Перечитывает osm_data и применяет к уже загруженным туалетам.
+//    Нужно после каждой загрузки precomputed, потому что listener
+//    срабатывает раньше, когда toiletsById ещё пустой.
+async function applyOsmDataToToilets() {
+  if (!FIREBASE_ENABLED || !fbDb) return 0;
+  try {
+    const snap = await fbDb.ref('osm_data').once('value');
+    const data = snap.val() || {};
+    let applied = 0;
+    for (const [osmId, entry] of Object.entries(data)) {
+      const t = toiletsById.get(osmId);
+      if (t) {
+        if (entry.votes) t.votes = entry.votes;
+        if (entry.code) t.access_code = entry.code;
+        statusCache.delete(osmId);
+        applied++;
+      }
+    }
+    console.log(`🗳 Применено голосов OSM: ${applied}`);
+    return applied;
+  } catch (e) {
+    console.warn('applyOsmData failed:', e.message);
+    return 0;
+  }
+}  
   
 /* ====================== ТАЙЛЫ ====================== */
 function getTilesAround(radius) {
@@ -1234,8 +1279,8 @@ function renderReviews(toilet) {
         <button class="review-btn" data-value="no"><span>${cfg.no}</span><span class="cnt">${s.no}</span></button>
       </div>
       <div class="review-bar">${hasV
-        ? `<div class="review-bar-fill" style="width:${pct}%"></div>`
-        : `<div class="review-bar-empty"></div>`}</div>`;
+        ? `<div class="review-bar-fill" style="width:${pct}%"></div><div class="review-bar-rest"></div>`
+        : `<div class="review-bar-empty"></div>`}</div>
 
     item.querySelectorAll('.review-btn').forEach(btn => {
       if (myVotes[key] === btn.dataset.value) btn.classList.add('selected');
@@ -1272,13 +1317,22 @@ async function handleVote(toilet, key, value) {
         return cur;
       });
 
+      // 🔑 Обновляем локальный объект СРАЗУ, чтобы счётчик показал +1, не дожидаясь listener
+      if (!toilet.votes) toilet.votes = {};
+      if (!toilet.votes[key]) toilet.votes[key] = { yes: 0, no: 0 };
+      if (prev === 'yes' && toilet.votes[key].yes > 0) toilet.votes[key].yes--;
+      if (prev === 'no' && toilet.votes[key].no > 0) toilet.votes[key].no--;
+      if (value === 'yes') toilet.votes[key].yes++;
+      if (value === 'no') toilet.votes[key].no++;
+
+      const stored = toiletsById.get(toilet.id);
+      if (stored && stored !== toilet) stored.votes = toilet.votes;
+
       const fresh = getUserVotes(toilet.id);
       fresh[key + '_sent'] = true;
       saveUserVotes(toilet.id, fresh);
 
-      // 🔑 Считаем статистику для бейджей
       if (!prev) bumpStat('votes');
-
       statusCache.delete(toilet.id);
     } catch (e) {
       showToast('Не удалось отправить голос');
@@ -1724,18 +1778,7 @@ async function init() {
     if (nearestStart) loadedPrecomputedCities.add(nearestStart.city.name);
     
     if (precomputedCount > 0) {
-      try {
-        const osmSnap = await fbDb.ref('osm_data').once('value');
-        const osmData = osmSnap.val() || {};
-        for (const [osmId, entry] of Object.entries(osmData)) {
-          const t = toiletsById.get(osmId);
-          if (t) {
-            if (entry.votes) t.votes = entry.votes;
-            if (entry.code) t.access_code = entry.code;
-          }
-        }
-      } catch (e) {}
-
+      await applyOsmDataToToilets();
       scheduleRender();
       showLoadingBar(`Загружено ${precomputedCount} туалетов`, 'count');
       setTimeout(hideLoadingBar, 1500);
